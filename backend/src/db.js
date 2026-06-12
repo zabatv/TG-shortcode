@@ -63,6 +63,10 @@ async function initDB() {
       END IF;
     END $$;
   `);
+  // Добавляем колонку links (для ссылок группы), если ещё нет
+  await pool.query(`
+    ALTER TABLE groups ADD COLUMN IF NOT EXISTS links TEXT DEFAULT ''
+  `);
   console.log('DB: tables ready');
 }
 
@@ -165,10 +169,10 @@ async function addGroup({ branch_id, key, name, time }) {
   return res.rows[0];
 }
 
-async function updateGroup(id, { name, time }) {
+async function updateGroup(id, { name, time, links }) {
   const res = await pool.query(
-    `UPDATE groups SET name = $2, time = $3 WHERE id = $1 RETURNING *`,
-    [id, name, time || '']
+    `UPDATE groups SET name = $2, time = $3, links = $4 WHERE id = $1 RETURNING *`,
+    [id, name, time || '', links || '']
   );
   return res.rows[0];
 }

@@ -45,7 +45,7 @@ app.get('/api/branches', async (_req, res) => {
         name: b.name,
         teacher: b.teacher,
         days: b.days,
-        groups: groups.map(g => ({ id: g.id, key: g.key, name: g.name, time: g.time })),
+        groups: groups.map(g => ({ id: g.id, key: g.key, name: g.name, time: g.time, links: g.links })),
       });
     }
     res.json(result);

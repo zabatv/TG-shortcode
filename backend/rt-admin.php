@@ -187,6 +187,7 @@ function rt_groups_page() {
                     'key' => sanitize_title($_POST['name']),
                     'name' => sanitize_text_field($_POST['name']),
                     'time' => sanitize_text_field($_POST['time']),
+                    'links' => sanitize_textarea_field($_POST['links']),
                 )),
                 'timeout' => 10,
             ));
@@ -196,6 +197,7 @@ function rt_groups_page() {
             rt_api_put('/groups/' . intval($_POST['id']), array(
                 'name' => sanitize_text_field($_POST['name']),
                 'time' => sanitize_text_field($_POST['time']),
+                'links' => sanitize_textarea_field($_POST['links']),
             ));
             $msg = 'Группа обновлена';
         }
@@ -226,6 +228,8 @@ function rt_groups_page() {
     echo '<div><label>Название</label><input type="text" name="name" required></div>';
     echo '<div><label>Время</label><input type="text" name="time" placeholder="18:00-19:20"></div>';
     echo '</div>';
+    echo '<div><label>Ссылки (JSON)</label>';
+    echo '<textarea name="links" rows="3" placeholder=\'[{"label":"Telegram","url":"https://t.me/..."}]\' style="max-width:400px;width:100%"></textarea></div>';
     echo '<button class="button button-primary">Добавить</button>';
     echo '</form>';
     echo '</div>';
@@ -266,6 +270,10 @@ function rt_groups_page() {
     echo '<div><label>Название</label><input type="text" name="name" id="egname" required></div>';
     echo '<div><label>Время</label><input type="text" name="time" id="egtime"></div>';
     echo '</div>';
+    echo '<div><label>Ссылки (JSON)</label>';
+    echo '<textarea name="links" id="eglinks" rows="3" placeholder=\'[{"label":"Telegram","url":"https://t.me/..."},{"label":"WhatsApp","url":"https://..."}]\' style="max-width:400px;width:100%"></textarea>';
+    echo '<p style="font-size:12px;color:#666">Формат: массив объектов с полями label и url</p>';
+    echo '</div>';
     echo '<button class="button button-primary">Сохранить</button>';
     echo '<button class="button" type="button" onclick="document.getElementById(\'rt-edit-group\').style.display=\'none\'">Отмена</button>';
     echo '</form>';
@@ -276,6 +284,7 @@ function rt_groups_page() {
         document.getElementById("egid").value = id;
         document.getElementById("egname").value = g.name;
         document.getElementById("egtime").value = g.time || "";
+        document.getElementById("eglinks").value = g.links || "";
         document.getElementById("rt-edit-group").style.display = "block";
     }
     </script>';
