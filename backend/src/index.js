@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const { initDB, saveRegistration } = require('./db');
-const { sendTelegram, formatMessage } = require('./telegram');
+const { initDB, saveRegistration, upsertChatUser, findChatByPhone } = require('./db');
+const { sendTelegram, formatMessage, setWebhook } = require('./telegram');
 
 const app = express();
 app.use(cors());
@@ -29,12 +29,22 @@ app.post('/notify', async (req, res) => {
   };
 
   try {
-    // 1. Сохраняем в БД
     const recordId = await saveRegistration(data);
 
-    // 2. Отправляем в Telegram
-    const tgText = formatMessage(data);
-    await sendTelegram(tgText);
+    // Админу
+    await sendTelegram(formatMessage(data));
+
+    // Записавшемуся — если находим его chat_id по телефону
+    const chatId = await findChatByPhone(data.phone);
+    if (chatId) {
+      const confirmText =
+        `✅ <b>Вы успешно записаны!</b>\n\n` +
+        `🏫 ${data.branch}\n` +
+        `👥 ${data.group_name}\n` +
+        (data.name ? `👤 ${data.name}\n` : '') +
+        `\nСкоро с вами свяжутся. Спасибо!`;
+      await sendTelegram(confirmText, chatId);
+    }
 
     console.log(`Registration #${recordId} saved & notified`);
     res.json({ ok: true, id: recordId });
@@ -44,10 +54,73 @@ app.post('/notify', async (req, res) => {
   }
 });
 
+// Telegram webhook — вызывается Telegram, когда кто-то пишет боту
+app.post('/telegram-webhook', async (req, res) => {
+  const update = req.body;
+
+  // Только личные сообщения (не из групп)
+  if (update.message && !update.message.chat.type.includes('group')) {
+    const chat = update.message.chat;
+    const chatId = chat.id;
+    const text = update.message.text || '';
+
+    // Сохраняем/обновляем пользователя в БД
+    await upsertChatUser({
+      chat_id: chatId,
+      first_name: chat.first_name || '',
+      username: chat.username || '',
+      phone: '',
+    });
+
+    // Если прислали номер телефона через контакт
+    if (update.message.contact) {
+      const phone = update.message.contact.phone_number;
+      await upsertChatUser({ chat_id: chatId, first_name: chat.first_name, username: chat.username, phone });
+      await sendTelegram(
+        `Спасибо! Ваш номер <b>${phone}</b> сохранён. Теперь при записи на сайте вы получите подтверждение в этом чате.`,
+        chatId
+      );
+      return res.json({ ok: true });
+    }
+
+    // Простое текстовое сообщение — отвечаем
+    const reply =
+      `👋 Привет, ${chat.first_name || 'гость'}!\n\n` +
+      `Я бот танцевальной студии. Чтобы записаться на занятие, перейдите на сайт.\n\n` +
+      `Если хотите получать подтверждение записи в этом чате — отправьте свой номер телефона через кнопку ниже 👇`;
+
+    await sendTelegram(reply, chatId);
+
+    // Кнопка для отправки контакта
+    await callTelegram('sendMessage', {
+      chat_id: chatId,
+      text: 'Нажмите кнопку, чтобы поделиться номером:',
+      reply_markup: {
+        keyboard: [
+          [{ text: '📱 Отправить номер телефона', request_contact: true }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true,
+      },
+    });
+  }
+
+  res.json({ ok: true });
+});
+
 // Запуск
 (async () => {
   await initDB();
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
+
+  // Устанавливаем вебхук для Telegram
+  try {
+    const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+    await setWebhook(`${baseUrl}/telegram-webhook`);
+    console.log(`Telegram webhook set to ${baseUrl}/telegram-webhook`);
+  } catch (err) {
+    console.error('Failed to set Telegram webhook:', err.message);
+  }
 })();

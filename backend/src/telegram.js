@@ -1,24 +1,20 @@
 const https = require('https');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CHAT_ID   = process.env.TELEGRAM_CHAT_ID;
+const ADMIN_ID  = process.env.TELEGRAM_CHAT_ID;
 
-function sendTelegram(text) {
+function callTelegram(method, payload) {
   return new Promise((resolve, reject) => {
-    if (!BOT_TOKEN || !CHAT_ID) {
-      console.warn('Telegram: BOT_TOKEN or CHAT_ID not set, skipping');
+    if (!BOT_TOKEN) {
+      console.warn('Telegram: BOT_TOKEN not set, skipping');
       return resolve(false);
     }
 
-    const body = JSON.stringify({
-      chat_id: CHAT_ID,
-      text: text,
-      parse_mode: 'HTML',
-    });
+    const body = JSON.stringify(payload);
 
     const req = https.request({
       hostname: 'api.telegram.org',
-      path: `/bot${BOT_TOKEN}/sendMessage`,
+      path: `/bot${BOT_TOKEN}/${method}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     }, (res) => {
@@ -37,6 +33,18 @@ function sendTelegram(text) {
   });
 }
 
+function sendTelegram(text, chatId) {
+  return callTelegram('sendMessage', {
+    chat_id: chatId || ADMIN_ID,
+    text: text,
+    parse_mode: 'HTML',
+  });
+}
+
+function setWebhook(url) {
+  return callTelegram('setWebhook', { url });
+}
+
 function formatMessage({ branch, group_name, name, phone, comment }) {
   const lines = [
     '🎯 <b>Новая запись на занятие!</b>',
@@ -51,4 +59,4 @@ function formatMessage({ branch, group_name, name, phone, comment }) {
   return lines.join('\n');
 }
 
-module.exports = { sendTelegram, formatMessage };
+module.exports = { sendTelegram, formatMessage, setWebhook, callTelegram };

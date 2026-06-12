@@ -17,7 +17,17 @@ async function initDB() {
       created_at    TIMESTAMP DEFAULT NOW()
     )
   `);
-  console.log('DB: table ready');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chat_users (
+      id            SERIAL PRIMARY KEY,
+      chat_id       BIGINT NOT NULL UNIQUE,
+      first_name    VARCHAR(255) DEFAULT '',
+      username      VARCHAR(255) DEFAULT '',
+      phone         VARCHAR(50)  DEFAULT '',
+      last_activity TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  console.log('DB: tables ready');
 }
 
 async function saveRegistration({ branch, group_name, name, phone, comment }) {
@@ -29,4 +39,25 @@ async function saveRegistration({ branch, group_name, name, phone, comment }) {
   return res.rows[0].id;
 }
 
-module.exports = { initDB, saveRegistration };
+async function upsertChatUser({ chat_id, first_name, username, phone }) {
+  await pool.query(
+    `INSERT INTO chat_users (chat_id, first_name, username, phone, last_activity)
+     VALUES ($1, $2, $3, $4, NOW())
+     ON CONFLICT (chat_id)
+     DO UPDATE SET first_name = $2, username = $3,
+       phone = COALESCE(NULLIF($4, ''), chat_users.phone),
+       last_activity = NOW()`,
+    [chat_id, first_name, username, phone || '']
+  );
+}
+
+async function findChatByPhone(phone) {
+  if (!phone) return null;
+  const res = await pool.query(
+    'SELECT chat_id FROM chat_users WHERE phone = $1 LIMIT 1',
+    [phone]
+  );
+  return res.rows.length ? res.rows[0].chat_id : null;
+}
+
+module.exports = { initDB, saveRegistration, upsertChatUser, findChatByPhone };
