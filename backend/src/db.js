@@ -103,6 +103,10 @@ async function seedBranches() {
     "UPDATE groups SET links = $1 WHERE links = '' OR links IS NULL",
     [testLinks]
   );
+  // Чиним двойное экранирование (\" вместо ")
+  await pool.query(
+    "UPDATE groups SET links = REPLACE(links, '\\\"', '\"') WHERE links LIKE '%\\\"%'"
+  );
 
   console.log('DB: branches seeded');
 }

@@ -131,14 +131,13 @@ function rt_branches_page() {
     } else {
         echo '<table class="rt-table"><thead><tr><th>Название</th><th>Ключ</th><th>Преподаватель</th><th>Дни</th><th></th></tr></thead><tbody>';
         foreach ($branches as $b) {
-            $edit = esc_attr(json_encode($b));
-            echo '<tr>';
+            echo '<tr data-branch=\'' . esc_attr(json_encode($b, JSON_HEX_TAG | JSON_HEX_APOS)) . '\'>';
             echo '<td><strong>' . esc_html($b['name']) . '</strong></td>';
             echo '<td><code>' . esc_html($b['key']) . '</code></td>';
             echo '<td>' . esc_html($b['teacher'] ?: '') . '</td>';
             echo '<td>' . esc_html($b['days'] ?: '') . '</td>';
             echo '<td class="rt-actions">';
-            echo '<button class="button button-small" onclick="rtEdit(' . $b['id'] . ',' . $edit . ')">edit</button>';
+            echo '<button class="button button-small edit-branch-btn">edit</button>';
             echo '<a href="?page=rt-dance&del=' . $b['id'] . '" class="button button-small" onclick="return confirm(\'Удалить?\')">del</a>';
             echo '</td></tr>';
         }
@@ -162,15 +161,6 @@ function rt_branches_page() {
     echo '</form>';
     echo '</div>';
 
-    echo '<script>
-    function rtEdit(id, b) {
-        document.getElementById("eid").value = id;
-        document.getElementById("ename").value = b.name;
-        document.getElementById("eteacher").value = b.teacher || "";
-        document.getElementById("edays").value = b.days || "";
-        document.getElementById("rt-edit").style.display = "block";
-    }
-    </script>';
     echo '</div>';
 }
 
@@ -244,12 +234,11 @@ function rt_groups_page() {
             echo '<table class="rt-table"><thead><tr><th>Название</th><th>Время</th><th></th></tr></thead><tbody>';
             if (!empty($b['groups'])) {
                 foreach ($b['groups'] as $g) {
-                    $edit = esc_attr(json_encode($g));
-                    echo '<tr>';
+                    echo '<tr data-group=\'' . esc_attr(json_encode($g, JSON_HEX_TAG | JSON_HEX_APOS)) . '\'>';
                     echo '<td>' . esc_html($g['name']) . '</td>';
                     echo '<td>' . esc_html($g['time'] ?: '') . '</td>';
                     echo '<td class="rt-actions">';
-                    echo '<button class="button button-small" onclick="rtEditGroup(' . $g['id'] . ',' . $edit . ')">edit</button>';
+                    echo '<button class="button button-small edit-group-btn">edit</button>';
                     echo '<a href="?page=rt-groups&del=' . $g['id'] . '" class="button button-small" onclick="return confirm(\'Удалить?\')">del</a>';
                     echo '</td></tr>';
                 }
@@ -280,13 +269,30 @@ function rt_groups_page() {
     echo '</div>';
 
     echo '<script>
-    function rtEditGroup(id, g) {
-        document.getElementById("egid").value = id;
-        document.getElementById("egname").value = g.name;
-        document.getElementById("egtime").value = g.time || "";
-        document.getElementById("eglinks").value = g.links || "";
-        document.getElementById("rt-edit-group").style.display = "block";
-    }
+    document.addEventListener("click", function(e) {
+        var btn, tr, d;
+        btn = e.target.closest(".edit-branch-btn");
+        if (btn) {
+            tr = btn.closest("tr");
+            d = JSON.parse(tr.getAttribute("data-branch"));
+            document.getElementById("eid").value = d.id;
+            document.getElementById("ename").value = d.name;
+            document.getElementById("eteacher").value = d.teacher || "";
+            document.getElementById("edays").value = d.days || "";
+            document.getElementById("rt-edit").style.display = "block";
+            return;
+        }
+        btn = e.target.closest(".edit-group-btn");
+        if (btn) {
+            tr = btn.closest("tr");
+            d = JSON.parse(tr.getAttribute("data-group"));
+            document.getElementById("egid").value = d.id;
+            document.getElementById("egname").value = d.name;
+            document.getElementById("egtime").value = d.time || "";
+            document.getElementById("eglinks").value = d.links || "";
+            document.getElementById("rt-edit-group").style.display = "block";
+        }
+    });
     </script>';
     echo '</div>';
 }
