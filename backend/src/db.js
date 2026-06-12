@@ -133,10 +133,11 @@ async function deleteRegistration(id) {
 }
 
 async function markClicked(id) {
-  await pool.query(
-    'UPDATE registrations SET clicked = true, clicked_at = NOW() WHERE id = $1',
+  const res = await pool.query(
+    `UPDATE registrations SET clicked = true, clicked_at = NOW() WHERE id = $1 RETURNING *`,
     [id]
   );
+  return res.rows;
 }
 
 async function getRegistrations({ branch, group_name, limit = 50 }) {

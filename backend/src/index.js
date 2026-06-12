@@ -67,7 +67,15 @@ app.delete('/api/registrations/:id', async (req, res) => {
 app.post('/api/track-click', async (req, res) => {
   const { id } = req.body;
   if (id) {
-    await markClicked(parseInt(id)).catch(() => {});
+    const rows = await markClicked(parseInt(id));
+    if (rows.length > 0) {
+      const r = rows[0];
+      await sendTelegram(
+        `✅ <b>Перешёл по ссылке!</b>\n\n` +
+        `👤 ${r.name || '—'} | ${r.phone || '—'}\n` +
+        `🏫 ${r.branch} — ${r.group_name}`
+      ).catch(() => {});
+    }
   }
   res.json({ ok: true });
 });
@@ -225,7 +233,8 @@ app.post('/telegram-webhook', async (req, res) => {
         rows.forEach((r, i) => {
           msg += `${i + 1}. ${r.name || '—'} | ${r.phone || '—'}`;
           if (r.comment) msg += ` | ${r.comment}`;
-          msg += `\n🕐 ${new Date(r.created_at).toLocaleString('ru-RU')}\n`;
+          msg += `\n🕐 ${new Date(r.created_at).toLocaleString('ru-RU')}`;
+          msg += ` | ${r.clicked ? '✅ перешёл' : '❌ не перешёл'}\n`;
         });
         await editMsg(chatId, msgId, msg, [[{ text: '← Назад', callback_data: 'regs_group:' + branch }]]);
       }
