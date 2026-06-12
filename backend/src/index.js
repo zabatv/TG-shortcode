@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { initDB, saveRegistration, upsertChatUser, findChatByPhone } = require('./db');
+const { initDB, saveRegistration, upsertChatUser, getAllChatIds } = require('./db');
 const { sendTelegram, formatMessage, setWebhook } = require('./telegram');
 
 const app = express();
@@ -31,22 +31,25 @@ app.post('/notify', async (req, res) => {
   try {
     const recordId = await saveRegistration(data);
 
-    // Админу
-    await sendTelegram(formatMessage(data));
+    const msg = formatMessage(data);
 
-    // Записавшемуся — если находим его chat_id по телефону
-    const chatId = await findChatByPhone(data.phone);
-    if (chatId) {
-      const confirmText =
-        `✅ <b>Вы успешно записаны!</b>\n\n` +
-        `🏫 ${data.branch}\n` +
-        `👥 ${data.group_name}\n` +
-        (data.name ? `👤 ${data.name}\n` : '') +
-        `\nСкоро с вами свяжутся. Спасибо!`;
-      await sendTelegram(confirmText, chatId);
+    // Админу
+    await sendTelegram(msg);
+
+    // Всем кто когда-либо писал боту
+    const allChatIds = await getAllChatIds();
+    const broadcastMsg =
+      `📢 <b>Новая запись!</b>\n\n` +
+      `🏫 ${data.branch}\n` +
+      `👥 ${data.group_name}\n` +
+      (data.name ? `👤 ${data.name}\n` : '') +
+      (data.phone ? `📞 ${data.phone}\n` : '');
+
+    for (const cid of allChatIds) {
+      await sendTelegram(broadcastMsg, cid).catch(() => {});
     }
 
-    console.log(`Registration #${recordId} saved & notified`);
+    console.log(`Registration #${recordId} saved, notified ${allChatIds.length + 1} chats`);
     res.json({ ok: true, id: recordId });
   } catch (err) {
     console.error('Error processing registration:', err);

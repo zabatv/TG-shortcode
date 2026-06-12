@@ -60,4 +60,9 @@ async function findChatByPhone(phone) {
   return res.rows.length ? res.rows[0].chat_id : null;
 }
 
-module.exports = { initDB, saveRegistration, upsertChatUser, findChatByPhone };
+async function getAllChatIds() {
+  const res = await pool.query('SELECT chat_id FROM chat_users');
+  return res.rows.map(r => r.chat_id);
+}
+
+module.exports = { initDB, saveRegistration, upsertChatUser, findChatByPhone, getAllChatIds };
