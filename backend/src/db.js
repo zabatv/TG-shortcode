@@ -79,19 +79,24 @@ async function seedBranches() {
 
   // Группы для Прохладного
   const b = await pool.query('SELECT id FROM branches WHERE key = $1', ['prokhladny']);
-  await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order) VALUES
-    ($1, 'senior_girls', 'Старшая (девочки)', '15:00–16:20', 1),
-    ($1, 'middle_girls', 'Средняя (девочки)', '16:30–17:50', 2),
-    ($1, 'junior_girls', 'Младшая (девочки)', '18:00–18:50', 3),
-    ($1, 'second_shift_girls', 'Вторая смена (девочки)', '19:00–20:20', 4)
-  ON CONFLICT DO NOTHING`, [b.rows[0].id]);
+  const testLinks = '[{"label":"Telegram","url":"https://t.me/test_group"},{"label":"WhatsApp","url":"https://chat.whatsapp.com/test123"}]';
+  await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order, links) VALUES
+    ($1, 'senior_girls', 'Старшая (девочки)', '15:00–16:20', 1, $2),
+    ($1, 'middle_girls', 'Средняя (девочки)', '16:30–17:50', 2, $2),
+    ($1, 'junior_girls', 'Младшая (девочки)', '18:00–18:50', 3, $2),
+    ($1, 'second_shift_girls', 'Вторая смена (девочки)', '19:00–20:20', 4, $2)
+  ON CONFLICT (branch_id, key) DO UPDATE SET
+    links = CASE WHEN groups.links = '' OR groups.links IS NULL THEN EXCLUDED.links ELSE groups.links END`,
+  [b.rows[0].id, testLinks]);
 
   // Группы для Майского
   const b2 = await pool.query('SELECT id FROM branches WHERE key = $1', ['maisky']);
-  await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order) VALUES
-    ($1, 'middle_common', 'Средняя (общая)', '16:30–17:50', 1),
-    ($1, 'senior_common', 'Старшая (общая)', '18:00–19:20', 2)
-  ON CONFLICT DO NOTHING`, [b2.rows[0].id]);
+  await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order, links) VALUES
+    ($1, 'middle_common', 'Средняя (общая)', '16:30–17:50', 1, $2),
+    ($1, 'senior_common', 'Старшая (общая)', '18:00–19:20', 2, $2)
+  ON CONFLICT (branch_id, key) DO UPDATE SET
+    links = CASE WHEN groups.links = '' OR groups.links IS NULL THEN EXCLUDED.links ELSE groups.links END`,
+  [b2.rows[0].id, testLinks]);
 
   console.log('DB: branches seeded');
 }
