@@ -207,6 +207,11 @@ async function updateGroup(id, { name, time, links }) {
   return res.rows[0];
 }
 
+async function getGroupById(id) {
+  const res = await pool.query('SELECT * FROM groups WHERE id = $1', [id]);
+  return res.rows[0] || null;
+}
+
 async function deleteGroup(id) {
   await pool.query('DELETE FROM groups WHERE id = $1', [id]);
 }
@@ -233,6 +238,6 @@ module.exports = {
   initDB, seedBranches,
   saveRegistration, markClicked, getRegistrations, deleteRegistration,
   getAllBranches, addBranch, updateBranch, deleteBranch,
-  getGroupsForBranch, getGroupsByName, addGroup, updateGroup, deleteGroup,
+  getGroupsForBranch, getGroupsByName, addGroup, updateGroup, getGroupById, deleteGroup,
   upsertChatUser, getAllChatIds,
 };

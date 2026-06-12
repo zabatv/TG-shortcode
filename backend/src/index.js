@@ -4,7 +4,7 @@ const {
   initDB, seedBranches,
   saveRegistration, markClicked, getRegistrations, deleteRegistration,
   getAllBranches, addBranch, updateBranch, deleteBranch,
-  getGroupsForBranch, getGroupsByName, addGroup, updateGroup, deleteGroup,
+  getGroupsForBranch, getGroupsByName, addGroup, updateGroup, getGroupById, deleteGroup,
   upsertChatUser, getAllChatIds,
 } = require('./db');
 const { sendTelegram, formatMessage, setWebhook, callTelegram } = require('./telegram');
@@ -207,36 +207,36 @@ app.post('/telegram-webhook', async (req, res) => {
     // Просмотр записей: выбор филиала
     if (data === 'regs_branches') {
       const branches = await getAllBranches();
-      const rows = branches.map(b => ([{ text: b.name, callback_data: 'regs_group:' + b.name }]));
+      const rows = branches.map(b => ([{ text: b.name, callback_data: 'regs_group:' + b.id }]));
       await editMsg(chatId, msgId, '🏫 Выберите филиал:', rows);
     }
     // Просмотр записей: выбор группы
     else if (data.startsWith('regs_group:')) {
-      const branch = data.slice(11);
-      const groups = await getGroupsByName(branch);
-      const rows = groups.map(g => ([{ text: g.name + ' ' + g.time, callback_data: 'regs_list:' + branch + '|' + g.name }]));
+      const branchId = parseInt(data.slice(11));
+      const branch = (await getAllBranches()).find(b => b.id === branchId);
+      const groups = await getGroupsForBranch(branchId);
+      const rows = groups.map(g => ([{ text: g.name + ' ' + g.time, callback_data: 'regs_list:' + g.id }]));
       rows.push([{ text: '← Назад', callback_data: 'regs_branches' }]);
-      await editMsg(chatId, msgId, `🏫 <b>${branch}</b> — выберите группу:`, rows);
+      await editMsg(chatId, msgId, `🏫 <b>${branch ? branch.name : ''}</b> — выберите группу:`, rows);
     }
     // Просмотр записей: список
     else if (data.startsWith('regs_list:')) {
-      const rest = data.slice(10);
-      const sep = rest.indexOf('|');
-      const branch = rest.slice(0, sep);
-      const group = rest.slice(sep + 1);
-      const rows = await getRegistrations({ branch, group_name: group, limit: 30 });
+      const groupId = parseInt(data.slice(10));
+      const g = await getGroupById(groupId);
+      const branch = g ? (await getAllBranches()).find(b => b.id === g.branch_id) : null;
+      const rows = await getRegistrations({ branch: branch ? branch.name : '', group_name: g ? g.name : '', limit: 30 });
       if (rows.length === 0) {
-        await editMsg(chatId, msgId, `📭 <b>${branch}</b> — <b>${group}</b>\nНет записей.`,
-          [[{ text: '← Назад', callback_data: 'regs_group:' + branch }]]);
+        await editMsg(chatId, msgId, `📭 <b>${branch ? branch.name : ''}</b> — <b>${g ? g.name : ''}</b>\nНет записей.`,
+          [[{ text: '← Назад', callback_data: 'regs_group:' + (branch ? branch.id : '') }]]);
       } else {
-        let msg = `📋 <b>${branch}</b> — <b>${group}</b>\n\n`;
+        let msg = `📋 <b>${branch ? branch.name : ''}</b> — <b>${g ? g.name : ''}</b>\n\n`;
         rows.forEach((r, i) => {
           msg += `${i + 1}. ${r.name || '—'} | ${r.phone || '—'}`;
           if (r.comment) msg += ` | ${r.comment}`;
           msg += `\n🕐 ${new Date(r.created_at).toLocaleString('ru-RU')}`;
           msg += ` | ${r.clicked ? '✅ перешёл' : '❌ не перешёл'}\n`;
         });
-        await editMsg(chatId, msgId, msg, [[{ text: '← Назад', callback_data: 'regs_group:' + branch }]]);
+        await editMsg(chatId, msgId, msg, [[{ text: '← Назад', callback_data: 'regs_group:' + (branch ? branch.id : '') }]]);
       }
     }
 
@@ -398,7 +398,7 @@ app.post('/telegram-webhook', async (req, res) => {
     // Команды
     if (text === '/regs' || text === '/start') {
       const branches = await getAllBranches();
-      const rows = branches.map(b => ([{ text: b.name, callback_data: 'regs_group:' + b.name }]));
+      const rows = branches.map(b => ([{ text: b.name, callback_data: 'regs_group:' + b.id }]));
       if (rows.length === 0) {
         await sendTelegram('Пока нет записей.', chatId);
       } else {
