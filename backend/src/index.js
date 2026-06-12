@@ -416,6 +416,17 @@ app.post('/telegram-webhook', async (req, res) => {
       return res.json({ ok: true });
     }
 
+    if (text === '/help') {
+      const help =
+        `<b>🤖 Команды бота</b>\n\n` +
+        `<b>/start</b> — просмотр записей\n` +
+        `<b>/regs</b> — список записей\n` +
+        (isAdmin(chatId) ? `<b>/admin</b> — управление филиалами и группами\n` : '') +
+        `\n📱 Отправьте контакт, чтобы получать подтверждение записи`;
+      await sendTelegram(help, chatId);
+      return res.json({ ok: true });
+    }
+
     // Приветствие
     const reply =
       `👋 Привет, ${chat.first_name || 'гость'}!\n\n` +
