@@ -9,10 +9,11 @@ define('RT_API', 'https://dance-notifier.onrender.com/api');
 
 add_action('admin_menu', 'rt_admin_menu');
 function rt_admin_menu() {
-    add_menu_page('Танцы', 'Танцы', 'manage_options', 'rt-dance', 'rt_branches_page', 'dashicons-groups', 25);
-    add_submenu_page('rt-dance', 'Филиалы', 'Филиалы', 'manage_options', 'rt-dance', 'rt_branches_page');
-    add_submenu_page('rt-dance', 'Группы', 'Группы', 'manage_options', 'rt-groups', 'rt_groups_page');
-    add_submenu_page('rt-dance', 'Записи', 'Записи', 'manage_options', 'rt-regs', 'rt_regs_page');
+    $cap = 'edit_posts';
+    add_menu_page('Танцы', 'Танцы', $cap, 'rt-dance', 'rt_branches_page', 'dashicons-groups', 25);
+    add_submenu_page('rt-dance', 'Филиалы', 'Филиалы', $cap, 'rt-dance', 'rt_branches_page');
+    add_submenu_page('rt-dance', 'Группы', 'Группы', $cap, 'rt-groups', 'rt_groups_page');
+    add_submenu_page('rt-dance', 'Записи', 'Записи', $cap, 'rt-regs', 'rt_regs_page');
 }
 
 add_action('admin_enqueue_scripts', 'rt_admin_assets');
