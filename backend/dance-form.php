@@ -68,9 +68,8 @@ function rubitime_form_shortcode($atts) {
     <h1>Заявка отправлена!</h1>
     <p class="rt-label" id="rt-s4-info"></p>
     <div class="rt-success-block">
-      <p>Мы свяжемся с вами в ближайшее время.</p>
+      <p>Пожалуйста, зайдите в вашу группу — там мы будем сообщать об изменениях</p>
     </div>
-    <h2 style="margin-top:24px;">Зайдите в вашу группу</h2>
     <div class="rt-btns" id="rt-group-links"></div>
     <button class="rt-btn" id="rt-restart" style="margin-top:16px;background:transparent;color:#010b12;border:2px solid #010b12;">Записаться ещё</button>
   </div>
