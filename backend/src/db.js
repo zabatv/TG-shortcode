@@ -65,4 +65,28 @@ async function getAllChatIds() {
   return res.rows.map(r => r.chat_id);
 }
 
-module.exports = { initDB, saveRegistration, upsertChatUser, findChatByPhone, getAllChatIds };
+async function getRegistrations({ branch, group_name, limit = 50 }) {
+  let sql = 'SELECT * FROM registrations WHERE 1=1';
+  const params = [];
+  if (branch) { params.push(branch); sql += ` AND branch = $${params.length}`; }
+  if (group_name) { params.push(group_name); sql += ` AND group_name = $${params.length}`; }
+  sql += ' ORDER BY created_at DESC LIMIT $' + (params.length + 1);
+  params.push(limit);
+  const res = await pool.query(sql, params);
+  return res.rows;
+}
+
+async function getBranches() {
+  const res = await pool.query('SELECT DISTINCT branch FROM registrations ORDER BY branch');
+  return res.rows.map(r => r.branch);
+}
+
+async function getGroups(branch) {
+  const res = await pool.query(
+    'SELECT DISTINCT group_name FROM registrations WHERE branch = $1 ORDER BY group_name',
+    [branch]
+  );
+  return res.rows.map(r => r.group_name);
+}
+
+module.exports = { initDB, saveRegistration, upsertChatUser, findChatByPhone, getAllChatIds, getRegistrations, getBranches, getGroups };

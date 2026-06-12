@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { initDB, saveRegistration, upsertChatUser, getAllChatIds } = require('./db');
+const { initDB, saveRegistration, upsertChatUser, getAllChatIds, getRegistrations, getBranches, getGroups } = require('./db');
 const { sendTelegram, formatMessage, setWebhook, callTelegram } = require('./telegram');
 
 const app = express();
@@ -67,17 +67,112 @@ app.post('/notify', async (req, res) => {
   }
 });
 
+// API: список записей (фильтр по branch / group)
+app.get('/api/registrations', async (req, res) => {
+  try {
+    const rows = await getRegistrations({
+      branch: req.query.branch || '',
+      group_name: req.query.group || '',
+      limit: parseInt(req.query.limit) || 100,
+    });
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/branches', async (_req, res) => {
+  try {
+    const branches = await getBranches();
+    res.json(branches);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/groups', async (req, res) => {
+  try {
+    const groups = await getGroups(req.query.branch || '');
+    res.json(groups);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Telegram webhook — вызывается Telegram, когда кто-то пишет боту
 app.post('/telegram-webhook', async (req, res) => {
   const update = req.body;
 
-  // Только личные сообщения (не из групп)
+  // ====== Callback query (нажатие на inline-кнопку) ======
+  if (update.callback_query) {
+    const cb = update.callback_query;
+    const chatId = cb.message.chat.id;
+    const msgId = cb.message.message_id;
+    const data = cb.data; // например "branch:Прохладный" или "group:Старшая (девочки)"
+
+    await upsertChatUser({
+      chat_id: chatId,
+      first_name: cb.from.first_name || '',
+      username: cb.from.username || '',
+      phone: '',
+    });
+
+    if (data.startsWith('branch:')) {
+      const branch = data.slice(7);
+      const groups = await getGroups(branch);
+      const rows = groups.map(g => ([{ text: g, callback_data: 'group:' + branch + '|' + g }]));
+      rows.push([{ text: '← Назад', callback_data: 'back_to_branches' }]);
+      await callTelegram('editMessageText', {
+        chat_id: chatId,
+        message_id: msgId,
+        text: `🏫 <b>${branch}</b>\nВыберите группу:`,
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: rows },
+      });
+    } else if (data.startsWith('group:')) {
+      const rest = data.slice(6);
+      const sep = rest.indexOf('|');
+      const branch = rest.slice(0, sep);
+      const group = rest.slice(sep + 1);
+      const rows = await getRegistrations({ branch, group_name: group, limit: 30 });
+      if (rows.length === 0) {
+        await callTelegram('editMessageText', {
+          chat_id: chatId,
+          message_id: msgId,
+          text: `📭 <b>${branch}</b> — <b>${group}</b>\nНет записей.`,
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: [[{ text: '← Назад', callback_data: 'branch:' + branch }]] },
+        });
+      } else {
+        let msg = `📋 <b>${branch}</b> — <b>${group}</b>\n\n`;
+        rows.forEach((r, i) => {
+          msg += `${i + 1}. ${r.name || '—'} | ${r.phone || '—'}`;
+          if (r.comment) msg += ` | ${r.comment}`;
+          msg += `\n   🕐 ${new Date(r.created_at).toLocaleString('ru-RU')}\n`;
+        });
+        await callTelegram('editMessageText', {
+          chat_id: chatId,
+          message_id: msgId,
+          text: msg,
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: [[{ text: '← Назад', callback_data: 'branch:' + branch }]] },
+        });
+      }
+    } else if (data === 'back_to_branches') {
+      await sendBranchList(chatId, msgId);
+    }
+
+    // Отвечаем на callback
+    await callTelegram('answerCallbackQuery', { callback_query_id: cb.id });
+    return res.json({ ok: true });
+  }
+
+  // ====== Обычные сообщения ======
   if (update.message && !update.message.chat.type.includes('group')) {
     const chat = update.message.chat;
     const chatId = chat.id;
-    const text = update.message.text || '';
+    const text = (update.message.text || '').trim();
 
-    // Сохраняем/обновляем пользователя в БД
     await upsertChatUser({
       chat_id: chatId,
       first_name: chat.first_name || '',
@@ -85,7 +180,7 @@ app.post('/telegram-webhook', async (req, res) => {
       phone: '',
     });
 
-    // Если прислали номер телефона через контакт
+    // Контакт
     if (update.message.contact) {
       const phone = update.message.contact.phone_number;
       await upsertChatUser({ chat_id: chatId, first_name: chat.first_name, username: chat.username, phone });
@@ -96,15 +191,26 @@ app.post('/telegram-webhook', async (req, res) => {
       return res.json({ ok: true });
     }
 
-    // Простое текстовое сообщение — отвечаем
+    // Команда /regs — список записей
+    if (text === '/regs' || text === '/start') {
+      const branches = await getBranches();
+      if (branches.length === 0) {
+        await sendTelegram('Пока нет записей. Как только кто-то запишется, здесь появится список.', chatId);
+        return res.json({ ok: true });
+      }
+      await sendBranchList(chatId);
+      return res.json({ ok: true });
+    }
+
+    // Приветствие
     const reply =
       `👋 Привет, ${chat.first_name || 'гость'}!\n\n` +
-      `Я бот танцевальной студии. Чтобы записаться на занятие, перейдите на сайт.\n\n` +
-      `Если хотите получать подтверждение записи в этом чате — отправьте свой номер телефона через кнопку ниже 👇`;
+      `Я бот танцевальной студии.\n\n` +
+      `📋 <b>/regs</b> — посмотреть записи на занятия\n` +
+      `📱 Отправьте контакт — получать подтверждение записи`;
 
     await sendTelegram(reply, chatId);
 
-    // Кнопка для отправки контакта
     await callTelegram('sendMessage', {
       chat_id: chatId,
       text: 'Нажмите кнопку, чтобы поделиться номером:',
@@ -120,6 +226,26 @@ app.post('/telegram-webhook', async (req, res) => {
 
   res.json({ ok: true });
 });
+
+async function sendBranchList(chatId, messageId) {
+  const branches = await getBranches();
+  const rows = branches.map(b => ([{ text: b, callback_data: 'branch:' + b }]));
+
+  if (messageId) {
+    await callTelegram('editMessageText', {
+      chat_id: chatId,
+      message_id: messageId,
+      text: '🏫 Выберите филиал:',
+      reply_markup: { inline_keyboard: rows },
+    });
+  } else {
+    await callTelegram('sendMessage', {
+      chat_id: chatId,
+      text: '🏫 Выберите филиал:',
+      reply_markup: { inline_keyboard: rows },
+    });
+  }
+}
 
 // Запуск
 (async () => {
