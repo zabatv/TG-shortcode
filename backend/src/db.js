@@ -98,6 +98,13 @@ async function seedBranches() {
     links = CASE WHEN groups.links = '' OR groups.links IS NULL THEN EXCLUDED.links ELSE groups.links END`,
   [b2.rows[0].id, testLinks]);
 
+  // Проставляем ссылки для старых групп, у которых их нет
+  const testLinks = '[{"label":"Telegram","url":"https://t.me/test_group"},{"label":"WhatsApp","url":"https://chat.whatsapp.com/test123"}]';
+  await pool.query(
+    "UPDATE groups SET links = $1 WHERE links = '' OR links IS NULL",
+    [testLinks]
+  );
+
   console.log('DB: branches seeded');
 }
 
