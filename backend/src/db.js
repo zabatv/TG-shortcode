@@ -51,14 +51,13 @@ async function initDB() {
 }
 
 async function seedBranches() {
-  const existing = await pool.query('SELECT COUNT(*) FROM branches');
-  if (parseInt(existing.rows[0].count) > 0) return;
-
+  // Создаём филиалы если их нет
   await pool.query(`INSERT INTO branches (key, name, teacher, days, sort_order) VALUES
     ('prokhladny', 'Прохладный', 'Губжокова Диана Анзоровна', 'Вторник, четверг', 1),
     ('maisky', 'Майский', '', 'Вторник, четверг', 2)
   ON CONFLICT (key) DO NOTHING`);
 
+  // Группы для Прохладного
   const b = await pool.query('SELECT id FROM branches WHERE key = $1', ['prokhladny']);
   await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order) VALUES
     ($1, 'senior_girls', 'Старшая (девочки)', '15:00–16:20', 1),
@@ -67,6 +66,7 @@ async function seedBranches() {
     ($1, 'second_shift_girls', 'Вторая смена (девочки)', '19:00–20:20', 4)
   ON CONFLICT DO NOTHING`, [b.rows[0].id]);
 
+  // Группы для Майского
   const b2 = await pool.query('SELECT id FROM branches WHERE key = $1', ['maisky']);
   await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order) VALUES
     ($1, 'middle_common', 'Средняя (общая)', '16:30–17:50', 1),
