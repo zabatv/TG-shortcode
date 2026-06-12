@@ -1,41 +1,25 @@
 <?php
 /**
  * Plugin Name: Форма записи на танцы
- * Description: Форма записи с уведомлениями в Telegram и сохранением в БД. Шорткод: [rubitime_form]
- * Version: 2.0
+ * Description: Форма записи с уведомлениями в Telegram. Филиалы и группы берутся из БД. Шорткод: [rubitime_form]
+ * Version: 2.1
  */
 
 define('RENDER_WEBHOOK_URL', 'https://dance-notifier.onrender.com/notify');
+define('RENDER_API_URL', 'https://dance-notifier.onrender.com/api');
 
 function rubitime_get_branches() {
-    return [
-        'prokhladny' => [
-            'name' => 'Прохладный',
-            'teacher' => 'Губжокова Диана Анзоровна',
-            'days' => 'Вторник, четверг',
-            'groups' => [
-                'senior_girls'      => ['name' => 'Старшая (девочки)',       'time' => '15:00–16:20'],
-                'middle_girls'      => ['name' => 'Средняя (девочки)',       'time' => '16:30–17:50'],
-                'junior_girls'      => ['name' => 'Младшая (девочки)',       'time' => '18:00–18:50'],
-                'second_shift_girls'=> ['name' => 'Вторая смена (девочки)',  'time' => '19:00–20:20'],
-            ],
-        ],
-        'maisky' => [
-            'name' => 'Майский',
-            'teacher' => '',
-            'days' => 'Вторник, четверг',
-            'groups' => [
-                'middle_common' => ['name' => 'Средняя (общая)', 'time' => '16:30–17:50'],
-                'senior_common' => ['name' => 'Старшая (общая)', 'time' => '18:00–19:20'],
-            ],
-        ],
-        'nalchik' => [
-            'name' => 'Нальчик',
-            'teacher' => '',
-            'days' => '',
-            'groups' => [],
-        ],
-    ];
+    $cache = get_transient('rt_branches_cache');
+    if ($cache) return $cache;
+
+    $resp = wp_remote_get(RENDER_API_URL . '/branches', ['timeout' => 10]);
+    if (is_wp_error($resp)) return [];
+
+    $data = json_decode(wp_remote_retrieve_body($resp), true);
+    if (!is_array($data)) return [];
+
+    set_transient('rt_branches_cache', $data, HOUR_IN_SECONDS);
+    return $data;
 }
 
 function rubitime_form_shortcode($atts) {
@@ -44,11 +28,7 @@ function rubitime_form_shortcode($atts) {
 
   <div class="rt-screen" id="rt-s1">
     <h1>Выберите филиал</h1>
-    <div class="rt-btns">
-      <?php foreach (rubitime_get_branches() as $k => $b): ?>
-      <button class="rt-btn" data-branch="<?php echo esc_attr($k); ?>"><?php echo esc_html($b['name']); ?></button>
-      <?php endforeach; ?>
-    </div>
+    <div class="rt-btns" id="rt-branches-list"></div>
   </div>
 
   <div class="rt-screen rt-hide" id="rt-s2">
@@ -133,10 +113,11 @@ function rubitime_form_shortcode($atts) {
 
 <script>
 (function() {
-    var rtBranches = <?php echo json_encode(rubitime_get_branches()); ?>;
+    var rtBranches = [];
     var rtSelectedBranch = null;
     var rtSelectedGroup  = null;
     var rtWebhookUrl    = '<?php echo RENDER_WEBHOOK_URL; ?>';
+    var rtApiUrl        = '<?php echo RENDER_API_URL; ?>';
 
     function showScreen(id) {
         var screens = document.querySelectorAll('#rt-app .rt-screen');
@@ -144,46 +125,45 @@ function rubitime_form_shortcode($atts) {
         document.getElementById(id).classList.remove('rt-hide');
     }
 
-    function getRulesText(groupKey, branchKey) {
-        var b = rtBranches[branchKey];
-        var g = b.groups[groupKey];
-        return '<p><strong>Группа:</strong> ' + g.name + '</p>' +
-               '<p><strong>Время:</strong> ' + g.time + '</p>' +
-               (b.days ? '<p><strong>Дни занятий:</strong> ' + b.days + '</p>' : '') +
-               (b.teacher ? '<p><strong>Преподаватель:</strong> ' + b.teacher + '</p>' : '') +
-               '<hr style="border:none;border-top:1px solid #c0d0b0;margin:12px 0">' +
-               '<p><strong>Правила посещения:</strong></p>' +
-               '<ul>' +
-               '<li>Приходить за 10 минут до начала занятия.</li>' +
-               '<li>Иметь сменную обувь и удобную одежду для танцев.</li>' +
-               '<li>При отсутствии предупредить преподавателя заранее.</li>' +
-               '<li>Соблюдать дисциплину и уважительно относиться к другим ученикам.</li>' +
-               '<li>Родители ожидают ребёнка в зоне ожидания.</li>' +
-               '</ul>';
-    }
-
     function showError(msg) {
-        var el = document.getElementById('rt-error-msg');
-        el.textContent = msg;
-        el.classList.remove('rt-hide');
+        document.getElementById('rt-error-msg').textContent = msg;
+        document.getElementById('rt-error-msg').classList.remove('rt-hide');
     }
 
     function hideError() {
         document.getElementById('rt-error-msg').classList.add('rt-hide');
     }
 
+    function loadBranches() {
+        fetch(rtApiUrl + '/branches')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                rtBranches = data;
+                var list = document.getElementById('rt-branches-list');
+                list.innerHTML = '';
+                data.forEach(function(b) {
+                    var btn = document.createElement('button');
+                    btn.className = 'rt-btn';
+                    btn.dataset.branch = b.key;
+                    btn.textContent = b.name;
+                    list.appendChild(btn);
+                });
+            });
+    }
+
     function initForm() {
         var app = document.getElementById('rt-app');
         if (!app) { setTimeout(initForm, 200); return; }
+
+        loadBranches();
 
         app.addEventListener('click', function(e) {
             var branchBtn = e.target.closest('[data-branch]');
             if (branchBtn) {
                 hideError();
-                rtSelectedBranch = branchBtn.dataset.branch;
-                var b = rtBranches[rtSelectedBranch];
-                var groups = b.groups;
-                var keys = Object.keys(groups);
+                rtSelectedBranch = rtBranches.find(function(b) { return b.key === branchBtn.dataset.branch; });
+                var b = rtSelectedBranch;
+                if (!b) return;
 
                 document.getElementById('rt-s2-title').textContent = b.name;
 
@@ -207,17 +187,16 @@ function rubitime_form_shortcode($atts) {
                 var list = document.getElementById('rt-groups-list');
                 list.innerHTML = '';
 
-                if (keys.length === 0) {
+                if (!b.groups || b.groups.length === 0) {
                     list.innerHTML = '<p style="text-align:center;color:#666;">Расписание для этого филиала скоро появится.</p>';
                 } else {
-                    for (var i = 0; i < keys.length; i++) {
-                        var g = groups[keys[i]];
+                    b.groups.forEach(function(g) {
                         var btn = document.createElement('button');
                         btn.className = 'rt-btn';
-                        btn.dataset.group = keys[i];
+                        btn.dataset.group = g.key;
                         btn.textContent = g.name + '  (' + g.time + ')';
                         list.appendChild(btn);
-                    }
+                    });
                 }
                 showScreen('rt-s2');
             }
@@ -225,13 +204,13 @@ function rubitime_form_shortcode($atts) {
             var groupBtn = e.target.closest('[data-group]');
             if (groupBtn) {
                 hideError();
-                rtSelectedGroup = groupBtn.dataset.group;
-                var b = rtBranches[rtSelectedBranch];
-                var g = b.groups[rtSelectedGroup];
+                rtSelectedGroup = rtSelectedBranch.groups.find(function(g) { return g.key === groupBtn.dataset.group; });
+                var b = rtSelectedBranch;
+                var g = rtSelectedGroup;
 
                 document.getElementById('rt-s3-title').textContent = b.name + ' — ' + g.name;
                 document.getElementById('rt-group-info').textContent = g.time + (b.days ? ' | ' + b.days : '');
-                document.getElementById('rt-rules-box').innerHTML = getRulesText(rtSelectedGroup, rtSelectedBranch);
+                document.getElementById('rt-rules-box').innerHTML = getRulesText(g, b);
                 document.getElementById('rt-agree').checked = false;
                 document.getElementById('rt-enroll-btn').disabled = true;
                 document.getElementById('rt-name').value = '';
@@ -259,8 +238,8 @@ function rubitime_form_shortcode($atts) {
             if (!name) { showError('Укажите имя ребёнка'); return; }
             if (!phone) { showError('Укажите телефон родителя'); return; }
 
-            var b = rtBranches[rtSelectedBranch];
-            var g = b.groups[rtSelectedGroup];
+            var b = rtSelectedBranch;
+            var g = rtSelectedGroup;
             var comment = 'Группа: ' + g.name + ' (' + g.time + ')';
 
             document.getElementById('rt-load').classList.remove('rt-hide');
@@ -297,8 +276,25 @@ function rubitime_form_shortcode($atts) {
             rtSelectedBranch = null;
             rtSelectedGroup = null;
             hideError();
+            loadBranches();
             showScreen('rt-s1');
         });
+    }
+
+    function getRulesText(g, b) {
+        return '<p><strong>Группа:</strong> ' + g.name + '</p>' +
+               '<p><strong>Время:</strong> ' + g.time + '</p>' +
+               (b.days ? '<p><strong>Дни занятий:</strong> ' + b.days + '</p>' : '') +
+               (b.teacher ? '<p><strong>Преподаватель:</strong> ' + b.teacher + '</p>' : '') +
+               '<hr style="border:none;border-top:1px solid #c0d0b0;margin:12px 0">' +
+               '<p><strong>Правила посещения:</strong></p>' +
+               '<ul>' +
+               '<li>Приходить за 10 минут до начала занятия.</li>' +
+               '<li>Иметь сменную обувь и удобную одежду для танцев.</li>' +
+               '<li>При отсутствии предупредить преподавателя заранее.</li>' +
+               '<li>Соблюдать дисциплину и уважительно относиться к другим ученикам.</li>' +
+               '<li>Родители ожидают ребёнка в зоне ожидания.</li>' +
+               '</ul>';
     }
 
     if (document.readyState === 'loading') {
