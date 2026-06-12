@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const {
   initDB, seedBranches,
-  saveRegistration, getRegistrations, deleteRegistration,
+  saveRegistration, markClicked, getRegistrations, deleteRegistration,
   getAllBranches, addBranch, updateBranch, deleteBranch,
   getGroupsForBranch, getGroupsByName, addGroup, updateGroup, deleteGroup,
   upsertChatUser, getAllChatIds,
@@ -61,6 +61,15 @@ app.delete('/api/registrations/:id', async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
+});
+
+// ====== Трекинг перехода по ссылке группы ======
+app.get('/track-click', async (req, res) => {
+  const { id, url } = req.query;
+  if (id && url) {
+    await markClicked(parseInt(id)).catch(() => {});
+  }
+  res.redirect(301, url || '/');
 });
 
 // ====== CRUD филиалов ======
@@ -132,20 +141,18 @@ app.post('/notify', async (req, res) => {
   try {
     const recordId = await saveRegistration(data);
 
-    await sendTelegram(formatMessage(data)).catch(() => {});
-
     const allChatIds = await getAllChatIds();
-    const broadcastMsg =
-      `📢 <b>Новая запись!</b>\n\n` +
-      `🏫 ${data.branch}\n👥 ${data.group_name}\n` +
-      (data.name ? `👤 ${data.name}\n` : '') +
-      (data.phone ? `📞 ${data.phone}\n` : '');
+    const msg = formatMessage(data);
 
     for (const cid of allChatIds) {
-      await sendTelegram(broadcastMsg, cid).catch(() => {});
+      if (ADMIN_ID && String(cid) === String(ADMIN_ID)) continue;
+      await sendTelegram(msg, cid).catch(() => {});
     }
 
-    console.log(`Registration #${recordId} saved, notified ${allChatIds.length + 1} chats`);
+    // Админу отдельно (на случай если его нет в chat_users)
+    await sendTelegram(msg).catch(() => {});
+
+    console.log(`Registration #${recordId} saved, notified ${allChatIds.length} chats`);
     res.json({ ok: true, id: recordId });
   } catch (err) {
     console.error('Error:', err.message);

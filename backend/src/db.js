@@ -67,6 +67,13 @@ async function initDB() {
   await pool.query(`
     ALTER TABLE groups ADD COLUMN IF NOT EXISTS links TEXT DEFAULT ''
   `);
+  // Добавляем колонки для отслеживания переходов
+  await pool.query(`
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS clicked BOOLEAN DEFAULT false
+  `);
+  await pool.query(`
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS clicked_at TIMESTAMP
+  `);
   console.log('DB: tables ready');
 }
 
@@ -123,6 +130,13 @@ async function saveRegistration({ branch, group_name, name, phone, comment }) {
 
 async function deleteRegistration(id) {
   await pool.query('DELETE FROM registrations WHERE id = $1', [id]);
+}
+
+async function markClicked(id) {
+  await pool.query(
+    'UPDATE registrations SET clicked = true, clicked_at = NOW() WHERE id = $1',
+    [id]
+  );
 }
 
 async function getRegistrations({ branch, group_name, limit = 50 }) {
@@ -216,7 +230,7 @@ async function getAllChatIds() {
 
 module.exports = {
   initDB, seedBranches,
-  saveRegistration, getRegistrations, deleteRegistration,
+  saveRegistration, markClicked, getRegistrations, deleteRegistration,
   getAllBranches, addBranch, updateBranch, deleteBranch,
   getGroupsForBranch, getGroupsByName, addGroup, updateGroup, deleteGroup,
   upsertChatUser, getAllChatIds,

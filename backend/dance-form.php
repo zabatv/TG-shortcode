@@ -260,6 +260,7 @@ function rubitime_form_shortcode($atts) {
             .then(function(data) {
                 document.getElementById('rt-load').classList.add('rt-hide');
                 if (data.ok) {
+                    var regId = data.id;
                     document.getElementById('rt-s4-info').textContent =
                         b.name + ' — ' + g.name + ' (' + g.time + ')';
 
@@ -278,7 +279,7 @@ function rubitime_form_shortcode($atts) {
                         items.forEach(function(l) {
                             if (l.url) {
                                 var a = document.createElement('a');
-                                a.href = l.url;
+                                a.href = rtApiUrl + '/track-click?id=' + regId + '&url=' + encodeURIComponent(l.url);
                                 a.className = 'rt-btn rt-link';
                                 a.target = '_blank';
                                 a.rel = 'noopener';

@@ -365,8 +365,11 @@ function rt_regs_page() {
     if (empty($rows)) {
         echo '<p>Пока нет записей.</p>';
     } else {
-        echo '<table class="rt-table"><thead><tr><th>#</th><th>Филиал</th><th>Группа</th><th>Имя</th><th>Телефон</th><th>Дата</th><th></th></tr></thead><tbody>';
+        echo '<table class="rt-table"><thead><tr><th>#</th><th>Филиал</th><th>Группа</th><th>Имя</th><th>Телефон</th><th>Дата</th><th>Перешёл</th><th></th></tr></thead><tbody>';
         foreach ($rows as $i => $r) {
+            $clicked = !empty($r['clicked'])
+                ? '<span style="color:#090">✔ ' . date('d.m H:i', strtotime($r['clicked_at'])) . '</span>'
+                : '<span style="color:#999">—</span>';
             echo '<tr>';
             echo '<td>' . ($i + 1) . '</td>';
             echo '<td>' . esc_html($r['branch']) . '</td>';
@@ -374,6 +377,7 @@ function rt_regs_page() {
             echo '<td>' . esc_html($r['name'] ?: '') . '</td>';
             echo '<td>' . esc_html($r['phone'] ?: '') . '</td>';
             echo '<td>' . date('d.m.Y H:i', strtotime($r['created_at'])) . '</td>';
+            echo '<td>' . $clicked . '</td>';
             echo '<td><a href="?page=rt-regs&del=' . $r['id'] . '" class="button button-small" onclick="return confirm(\'Удалить?\')">del</a></td>';
             echo '</tr>';
         }
