@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const {
   initDB, seedBranches,
-  saveRegistration, getRegistrations,
+  saveRegistration, getRegistrations, deleteRegistration,
   getAllBranches, addBranch, updateBranch, deleteBranch,
   getGroupsForBranch, getGroupsByName, addGroup, updateGroup, deleteGroup,
   upsertChatUser, getAllChatIds,
@@ -51,6 +51,15 @@ app.get('/api/branches', async (_req, res) => {
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/registrations/:id', async (req, res) => {
+  try {
+    await deleteRegistration(parseInt(req.params.id));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 

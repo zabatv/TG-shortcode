@@ -284,23 +284,73 @@ function rt_groups_page() {
 
 // ===== Записи =====
 function rt_regs_page() {
+    $msg = '';
+
+    // Добавить запись
+    if (!empty($_POST['rt_action']) && $_POST['rt_action'] === 'add_reg') {
+        wp_remote_post(RT_API . '/notify', array(
+            'headers' => array('Content-Type' => 'application/json'),
+            'body' => json_encode(array(
+                'branch' => sanitize_text_field($_POST['branch']),
+                'group' => sanitize_text_field($_POST['group']),
+                'name' => sanitize_text_field($_POST['name']),
+                'phone' => sanitize_text_field($_POST['phone']),
+                'comment' => sanitize_text_field($_POST['comment']),
+            )),
+            'timeout' => 10,
+        ));
+        $msg = 'Запись добавлена';
+    }
+
+    // Удалить запись
+    if (!empty($_GET['del'])) {
+        rt_api_delete('/registrations/' . intval($_GET['del']));
+        $msg = 'Запись удалена';
+    }
+
     $branch = isset($_GET['branch']) ? $_GET['branch'] : '';
     $group = isset($_GET['group']) ? $_GET['group'] : '';
-    $url = '/registrations?limit=100';
+    $url = '/registrations?limit=200';
     if ($branch) $url .= '&branch=' . urlencode($branch);
     if ($group) $url .= '&group=' . urlencode($group);
 
     $rows = rt_api_get($url);
+    $branches = rt_api_get('/branches');
 
     echo '<div class="rt-wrap">';
     echo '<h1>Записи</h1>';
+    if ($msg) echo '<div class="rt-msg ok">' . esc_html($msg) . '</div>';
+
+    // Форма добавления
+    echo '<div class="rt-card">';
+    echo '<h2>+ Добавить запись вручную</h2>';
+    echo '<form method="post" class="rt-form">';
+    echo '<input type="hidden" name="rt_action" value="add_reg">';
+    echo '<div class="rt-row">';
+    echo '<div><label>Филиал</label>';
+    echo '<select name="branch" required style="max-width:400px;width:100%"><option value="">—</option>';
+    foreach ($branches as $b) {
+        echo '<option value="' . esc_attr($b['name']) . '">' . esc_html($b['name']) . '</option>';
+    }
+    echo '</select></div>';
+    echo '<div><label>Группа</label><input type="text" name="group" required placeholder="Старшая (девочки)"></div>';
+    echo '</div>';
+    echo '<div class="rt-row">';
+    echo '<div><label>Имя</label><input type="text" name="name" required></div>';
+    echo '<div><label>Телефон</label><input type="text" name="phone" required></div>';
+    echo '</div>';
+    echo '<div><label>Комментарий</label><input type="text" name="comment"></div>';
+    echo '<button class="button button-primary">Добавить</button>';
+    echo '</form>';
+    echo '</div>';
+
+    // Список
     echo '<div class="rt-card">';
     echo '<p>Всего: <strong>' . count($rows) . '</strong></p>';
-
     if (empty($rows)) {
         echo '<p>Пока нет записей.</p>';
     } else {
-        echo '<table class="rt-table"><thead><tr><th>#</th><th>Филиал</th><th>Группа</th><th>Имя</th><th>Телефон</th><th>Дата</th></tr></thead><tbody>';
+        echo '<table class="rt-table"><thead><tr><th>#</th><th>Филиал</th><th>Группа</th><th>Имя</th><th>Телефон</th><th>Дата</th><th></th></tr></thead><tbody>';
         foreach ($rows as $i => $r) {
             echo '<tr>';
             echo '<td>' . ($i + 1) . '</td>';
@@ -309,6 +359,7 @@ function rt_regs_page() {
             echo '<td>' . esc_html($r['name'] ?: '') . '</td>';
             echo '<td>' . esc_html($r['phone'] ?: '') . '</td>';
             echo '<td>' . date('d.m.Y H:i', strtotime($r['created_at'])) . '</td>';
+            echo '<td><a href="?page=rt-regs&del=' . $r['id'] . '" class="button button-small" onclick="return confirm(\'Удалить?\')">del</a></td>';
             echo '</tr>';
         }
         echo '</tbody></table>';

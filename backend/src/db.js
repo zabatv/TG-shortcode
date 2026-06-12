@@ -86,6 +86,10 @@ async function saveRegistration({ branch, group_name, name, phone, comment }) {
   return res.rows[0].id;
 }
 
+async function deleteRegistration(id) {
+  await pool.query('DELETE FROM registrations WHERE id = $1', [id]);
+}
+
 async function getRegistrations({ branch, group_name, limit = 50 }) {
   let sql = 'SELECT * FROM registrations WHERE 1=1';
   const params = [];
@@ -177,7 +181,7 @@ async function getAllChatIds() {
 
 module.exports = {
   initDB, seedBranches,
-  saveRegistration, getRegistrations,
+  saveRegistration, getRegistrations, deleteRegistration,
   getAllBranches, addBranch, updateBranch, deleteBranch,
   getGroupsForBranch, getGroupsByName, addGroup, updateGroup, deleteGroup,
   upsertChatUser, getAllChatIds,
