@@ -267,22 +267,25 @@ function rubitime_form_shortcode($atts) {
                     var linksDiv = document.getElementById('rt-group-links');
                     linksDiv.innerHTML = '';
                     if (g.links) {
+                        var items = [];
                         try {
-                            var links = JSON.parse(g.links);
-                            if (Array.isArray(links)) {
-                                links.forEach(function(l) {
-                                    if (l.url) {
-                                        var a = document.createElement('a');
-                                        a.href = l.url;
-                                        a.className = 'rt-btn rt-link';
-                                        a.target = '_blank';
-                                        a.rel = 'noopener';
-                                        a.textContent = l.label || l.url;
-                                        linksDiv.appendChild(a);
-                                    }
-                                });
-                            }
+                            var parsed = JSON.parse(g.links);
+                            if (Array.isArray(parsed)) items = parsed;
                         } catch(e) {}
+                        if (items.length === 0 && g.links.trim().startsWith('http')) {
+                            items = [{ label: 'Перейти', url: g.links.trim() }];
+                        }
+                        items.forEach(function(l) {
+                            if (l.url) {
+                                var a = document.createElement('a');
+                                a.href = l.url;
+                                a.className = 'rt-btn rt-link';
+                                a.target = '_blank';
+                                a.rel = 'noopener';
+                                a.textContent = l.label || l.url;
+                                linksDiv.appendChild(a);
+                            }
+                        });
                     }
 
                     showScreen('rt-s4');
