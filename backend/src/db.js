@@ -67,10 +67,6 @@ async function initDB() {
   await pool.query(`
     ALTER TABLE groups ADD COLUMN IF NOT EXISTS links TEXT DEFAULT ''
   `);
-  // Добавляем колонку subscribed (подписка на уведомления)
-  await pool.query(`
-    ALTER TABLE chat_users ADD COLUMN IF NOT EXISTS subscribed BOOLEAN DEFAULT false
-  `);
   console.log('DB: tables ready');
 }
 
@@ -203,8 +199,8 @@ async function deleteGroup(id) {
 // ====== Chat users ======
 async function upsertChatUser({ chat_id, first_name, username, phone }) {
   await pool.query(
-    `INSERT INTO chat_users (chat_id, first_name, username, phone, subscribed, last_activity)
-     VALUES ($1, $2, $3, $4, true, NOW())
+    `INSERT INTO chat_users (chat_id, first_name, username, phone, last_activity)
+     VALUES ($1, $2, $3, $4, NOW())
      ON CONFLICT (chat_id)
      DO UPDATE SET first_name = $2, username = $3,
        phone = COALESCE(NULLIF($4, ''), chat_users.phone),
@@ -213,27 +209,9 @@ async function upsertChatUser({ chat_id, first_name, username, phone }) {
   );
 }
 
-async function setSubscribed(chatId, subscribed) {
-  await pool.query('UPDATE chat_users SET subscribed = $2 WHERE chat_id = $1', [chatId, subscribed]);
-}
-
-async function isSubscribed(chatId) {
-  const res = await pool.query('SELECT subscribed FROM chat_users WHERE chat_id = $1', [chatId]);
-  return res.rows.length > 0 && res.rows[0].subscribed;
-}
-
-async function getSubscribedCount() {
-  const res = await pool.query('SELECT COUNT(*) FROM chat_users WHERE subscribed = true');
-  return parseInt(res.rows[0].count);
-}
-
 async function getAllChatIds() {
-  const res = await pool.query('SELECT chat_id FROM chat_users WHERE subscribed = true');
+  const res = await pool.query('SELECT chat_id FROM chat_users');
   return res.rows.map(r => r.chat_id);
-}
-
-async function setSubscribed(chatId, subscribed) {
-  await pool.query('UPDATE chat_users SET subscribed = $2 WHERE chat_id = $1', [chatId, subscribed]);
 }
 
 module.exports = {
@@ -241,5 +219,5 @@ module.exports = {
   saveRegistration, getRegistrations, deleteRegistration,
   getAllBranches, addBranch, updateBranch, deleteBranch,
   getGroupsForBranch, getGroupsByName, addGroup, updateGroup, deleteGroup,
-  upsertChatUser, getAllChatIds, setSubscribed, isSubscribed, getSubscribedCount,
+  upsertChatUser, getAllChatIds,
 };

@@ -5,7 +5,7 @@ const {
   saveRegistration, getRegistrations, deleteRegistration,
   getAllBranches, addBranch, updateBranch, deleteBranch,
   getGroupsForBranch, getGroupsByName, addGroup, updateGroup, deleteGroup,
-  upsertChatUser, getAllChatIds, setSubscribed, isSubscribed, getSubscribedCount,
+  upsertChatUser, getAllChatIds,
 } = require('./db');
 const { sendTelegram, formatMessage, setWebhook, callTelegram } = require('./telegram');
 
@@ -132,18 +132,20 @@ app.post('/notify', async (req, res) => {
   try {
     const recordId = await saveRegistration(data);
 
+    await sendTelegram(formatMessage(data)).catch(() => {});
+
     const allChatIds = await getAllChatIds();
-    const msg = formatMessage(data);
+    const broadcastMsg =
+      `📢 <b>Новая запись!</b>\n\n` +
+      `🏫 ${data.branch}\n👥 ${data.group_name}\n` +
+      (data.name ? `👤 ${data.name}\n` : '') +
+      (data.phone ? `📞 ${data.phone}\n` : '');
 
     for (const cid of allChatIds) {
-      if (ADMIN_ID && String(cid) === String(ADMIN_ID)) continue;
-      await sendTelegram(msg, cid).catch(() => {});
+      await sendTelegram(broadcastMsg, cid).catch(() => {});
     }
 
-    // Админу — отдельно (на случай если его нет в chat_users)
-    await sendTelegram(msg).catch(() => {});
-
-    console.log(`Registration #${recordId} saved, notified ${allChatIds.length} chats`);
+    console.log(`Registration #${recordId} saved, notified ${allChatIds.length + 1} chats`);
     res.json({ ok: true, id: recordId });
   } catch (err) {
     console.error('Error:', err.message);
@@ -295,16 +297,6 @@ app.post('/telegram-webhook', async (req, res) => {
       await editMsg(chatId, msgId, '✅ Группа удалена. Выберите филиал:', rows);
     }
 
-    // === Подписка / отписка ===
-    else if (data === 'subscribe') {
-      await setSubscribed(chatId, true);
-      await editMsg(chatId, msgId, '🔔 Вы подписались на уведомления о новых записях.', []);
-    }
-    else if (data === 'unsubscribe') {
-      await setSubscribed(chatId, false);
-      await editMsg(chatId, msgId, '🔕 Вы отписались от уведомлений.', []);
-    }
-
     // === Админка: главное меню ===
     else if (data === 'admin_panel') {
       await showAdminPanel(chatId, msgId);
@@ -408,25 +400,6 @@ app.post('/telegram-webhook', async (req, res) => {
       return res.json({ ok: true });
     }
 
-    if (text === '/subscribe') {
-      await setSubscribed(chatId, true);
-      await sendTelegram('🔔 Вы подписались на уведомления о новых записях!', chatId);
-      return res.json({ ok: true });
-    }
-    if (text === '/unsubscribe') {
-      await setSubscribed(chatId, false);
-      await sendTelegram('🔕 Вы отписались от уведомлений.', chatId);
-      return res.json({ ok: true });
-    }
-
-    if (text === '/users' && isAdmin(chatId)) {
-      const count = await getSubscribedCount();
-      await sendTelegram(
-        `👥 <b>Подписчики на уведомления:</b> ${count}`, chatId
-      );
-      return res.json({ ok: true });
-    }
-
     // Приветствие
     const reply =
       `👋 Привет, ${chat.first_name || 'гость'}!\n\n` +
@@ -434,19 +407,7 @@ app.post('/telegram-webhook', async (req, res) => {
       (isAdmin(chatId) ? `⚙️ <b>/admin</b> — управление филиалами и группами\n\n` : '') +
       `📱 Отправьте контакт — получать подтверждение записи`;
 
-    const subscribed = await isSubscribed(chatId);
-    const subBtn = subscribed
-      ? { text: '🔕 Отписаться от уведомлений', callback_data: 'unsubscribe' }
-      : { text: '🔔 Подписаться на уведомления', callback_data: 'subscribe' };
-
-    await callTelegram('sendMessage', {
-      chat_id: chatId,
-      text: reply,
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [[subBtn]],
-      },
-    });
+    await sendTelegram(reply, chatId);
 
     await callTelegram('sendMessage', {
       chat_id: chatId,
