@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { initDB, saveRegistration, upsertChatUser, getAllChatIds } = require('./db');
-const { sendTelegram, formatMessage, setWebhook } = require('./telegram');
+const { sendTelegram, formatMessage, setWebhook, callTelegram } = require('./telegram');
 
 const app = express();
 app.use(cors());
@@ -11,6 +11,16 @@ const PORT = process.env.PORT || 5050;
 
 // Health check
 app.get('/', (_req, res) => res.send('OK'));
+
+app.get('/debug', (_req, res) => {
+  res.json({
+    hasBotToken: !!process.env.TELEGRAM_BOT_TOKEN,
+    hasAdminId: !!process.env.TELEGRAM_CHAT_ID,
+    hasDbUrl: !!process.env.DATABASE_URL,
+    port: process.env.PORT || 'not set',
+    renderUrl: process.env.RENDER_EXTERNAL_URL || 'not set',
+  });
+});
 
 // Notify endpoint — вызывается из WordPress после успешной записи в Rubitime
 app.post('/notify', async (req, res) => {
@@ -34,7 +44,7 @@ app.post('/notify', async (req, res) => {
     const msg = formatMessage(data);
 
     // Админу
-    await sendTelegram(msg);
+    await sendTelegram(msg).catch(() => {});
 
     // Всем кто когда-либо писал боту
     const allChatIds = await getAllChatIds();
@@ -52,8 +62,8 @@ app.post('/notify', async (req, res) => {
     console.log(`Registration #${recordId} saved, notified ${allChatIds.length + 1} chats`);
     res.json({ ok: true, id: recordId });
   } catch (err) {
-    console.error('Error processing registration:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error processing registration:', err.message);
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 

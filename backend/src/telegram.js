@@ -34,8 +34,13 @@ function callTelegram(method, payload) {
 }
 
 function sendTelegram(text, chatId) {
+  const target = chatId || ADMIN_ID;
+  if (!target) {
+    console.warn('Telegram: no target chat_id, skipping message');
+    return Promise.resolve(false);
+  }
   return callTelegram('sendMessage', {
-    chat_id: chatId || ADMIN_ID,
+    chat_id: target,
     text: text,
     parse_mode: 'HTML',
   });
