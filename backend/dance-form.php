@@ -279,11 +279,18 @@ function rubitime_form_shortcode($atts) {
                         items.forEach(function(l) {
                             if (l.url) {
                                 var a = document.createElement('a');
-                                a.href = rtApiUrl + '/track-click?id=' + regId + '&url=' + encodeURIComponent(l.url);
+                                a.href = l.url;
                                 a.className = 'rt-btn rt-link';
                                 a.target = '_blank';
                                 a.rel = 'noopener';
                                 a.textContent = l.label || l.url;
+                                a.addEventListener('click', function() {
+                                    fetch(rtApiUrl + '/track-click', {
+                                        method: 'POST',
+                                        headers: {'Content-Type': 'application/json'},
+                                        body: JSON.stringify({ id: regId }),
+                                    }).catch(function(){});
+                                });
                                 linksDiv.appendChild(a);
                             }
                         });

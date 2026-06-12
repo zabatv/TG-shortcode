@@ -64,12 +64,12 @@ app.delete('/api/registrations/:id', async (req, res) => {
 });
 
 // ====== Трекинг перехода по ссылке группы ======
-app.get('/track-click', async (req, res) => {
-  const { id, url } = req.query;
-  if (id && url) {
+app.post('/api/track-click', async (req, res) => {
+  const { id } = req.body;
+  if (id) {
     await markClicked(parseInt(id)).catch(() => {});
   }
-  res.redirect(301, url || '/');
+  res.json({ ok: true });
 });
 
 // ====== CRUD филиалов ======
