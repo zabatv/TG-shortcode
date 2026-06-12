@@ -47,6 +47,22 @@ async function initDB() {
       sort_order  INT DEFAULT 0
     )
   `);
+  // Удаляем дубликаты, оставляя самую старую запись
+  await pool.query(`
+    DELETE FROM groups WHERE id NOT IN (
+      SELECT MIN(id) FROM groups GROUP BY branch_id, key
+    )
+  `);
+  // Добавляем уникальность (если ещё нет)
+  await pool.query(`
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'groups_branch_id_key_key'
+      ) THEN
+        ALTER TABLE groups ADD CONSTRAINT groups_branch_id_key_key UNIQUE (branch_id, key);
+      END IF;
+    END $$;
+  `);
   console.log('DB: tables ready');
 }
 
