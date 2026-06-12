@@ -3,8 +3,8 @@ const cors = require('cors');
 const {
   initDB, seedBranches,
   saveRegistration, getRegistrations,
-  getAllBranches, addBranch, deleteBranch,
-  getGroupsForBranch, getGroupsByName, addGroup, deleteGroup,
+  getAllBranches, addBranch, updateBranch, deleteBranch,
+  getGroupsForBranch, getGroupsByName, addGroup, updateGroup, deleteGroup,
   upsertChatUser, getAllChatIds,
 } = require('./db');
 const { sendTelegram, formatMessage, setWebhook, callTelegram } = require('./telegram');
@@ -51,6 +51,62 @@ app.get('/api/branches', async (_req, res) => {
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ====== CRUD филиалов ======
+app.post('/api/branches', async (req, res) => {
+  try {
+    const b = await addBranch(req.body);
+    res.json(b);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put('/api/branches/:id', async (req, res) => {
+  try {
+    const b = await updateBranch(parseInt(req.params.id), req.body);
+    res.json(b);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/branches/:id', async (req, res) => {
+  try {
+    await deleteBranch(parseInt(req.params.id));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ====== CRUD групп ======
+app.post('/api/groups', async (req, res) => {
+  try {
+    const g = await addGroup(req.body);
+    res.json(g);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put('/api/groups/:id', async (req, res) => {
+  try {
+    const g = await updateGroup(parseInt(req.params.id), req.body);
+    res.json(g);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/groups/:id', async (req, res) => {
+  try {
+    await deleteGroup(parseInt(req.params.id));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 

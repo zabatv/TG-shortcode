@@ -111,6 +111,14 @@ async function addBranch({ key, name, teacher, days }) {
   return res.rows[0];
 }
 
+async function updateBranch(id, { name, teacher, days }) {
+  const res = await pool.query(
+    `UPDATE branches SET name = $2, teacher = $3, days = $4 WHERE id = $1 RETURNING *`,
+    [id, name, teacher || '', days || '']
+  );
+  return res.rows[0];
+}
+
 async function deleteBranch(id) {
   await pool.query('DELETE FROM branches WHERE id = $1', [id]);
 }
@@ -133,6 +141,14 @@ async function addGroup({ branch_id, key, name, time }) {
   const res = await pool.query(
     `INSERT INTO groups (branch_id, key, name, time) VALUES ($1, $2, $3, $4) RETURNING *`,
     [branch_id, key, name, time || '']
+  );
+  return res.rows[0];
+}
+
+async function updateGroup(id, { name, time }) {
+  const res = await pool.query(
+    `UPDATE groups SET name = $2, time = $3 WHERE id = $1 RETURNING *`,
+    [id, name, time || '']
   );
   return res.rows[0];
 }
@@ -162,7 +178,7 @@ async function getAllChatIds() {
 module.exports = {
   initDB, seedBranches,
   saveRegistration, getRegistrations,
-  getAllBranches, addBranch, deleteBranch,
-  getGroupsForBranch, getGroupsByName, addGroup, deleteGroup,
+  getAllBranches, addBranch, updateBranch, deleteBranch,
+  getGroupsForBranch, getGroupsByName, addGroup, updateGroup, deleteGroup,
   upsertChatUser, getAllChatIds,
 };
