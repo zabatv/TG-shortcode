@@ -69,8 +69,8 @@ async function seedBranches() {
 
   const b2 = await pool.query('SELECT id FROM branches WHERE key = $1', ['maisky']);
   await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order) VALUES
-    ($2, 'middle_common', 'Средняя (общая)', '16:30–17:50', 1),
-    ($2, 'senior_common', 'Старшая (общая)', '18:00–19:20', 2)
+    ($1, 'middle_common', 'Средняя (общая)', '16:30–17:50', 1),
+    ($1, 'senior_common', 'Старшая (общая)', '18:00–19:20', 2)
   ON CONFLICT DO NOTHING`, [b2.rows[0].id]);
 
   console.log('DB: branches seeded');

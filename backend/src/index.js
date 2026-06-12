@@ -45,7 +45,7 @@ app.get('/api/branches', async (_req, res) => {
         name: b.name,
         teacher: b.teacher,
         days: b.days,
-        groups: groups.map(g => ({ key: g.key, name: g.name, time: g.time })),
+        groups: groups.map(g => ({ id: g.id, key: g.key, name: g.name, time: g.time })),
       });
     }
     res.json(result);
@@ -161,7 +161,11 @@ app.get('/api/registrations', async (req, res) => {
       group_name: req.query.group || '',
       limit: parseInt(req.query.limit) || 100,
     });
-    res.json(rows);
+    const msk = rows.map(r => ({
+      ...r,
+      created_at: new Date(r.created_at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
+    }));
+    res.json(msk);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
