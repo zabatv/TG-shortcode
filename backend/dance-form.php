@@ -5,7 +5,7 @@
  * Version: 2.0
  */
 
-define('RENDER_WEBHOOK_URL', 'https://rubitime-notifier.onrender.com/notify');
+define('RENDER_WEBHOOK_URL', 'https://dance-notifier.onrender.com/notify');
 
 function rubitime_get_branches() {
     return [

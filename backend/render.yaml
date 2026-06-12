@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: rubitime-notifier
+    name: dance-notifier
     env: node
     buildCommand: npm install
     startCommand: npm start
@@ -11,12 +11,12 @@ services:
         sync: false
       - key: DATABASE_URL
         fromDatabase:
-          name: rubitime-db
+          name: dance-db
           property: connectionString
       - key: PORT
         value: 5050
 
 databases:
-  - name: rubitime-db
+  - name: dance-db
     plan: free
     region: frankfurt
