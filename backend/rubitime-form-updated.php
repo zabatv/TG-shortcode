@@ -1,21 +1,16 @@
 <?php
 /**
- * Plugin Name: Форма записи Rubitime
- * Description: Простая форма записи на танцы с интеграцией Rubitime CRM. Шорткод: [rubitime_form]
- * Version: 1.3
+ * Plugin Name: Форма записи на танцы
+ * Description: Форма записи с уведомлениями в Telegram и сохранением в БД. Шорткод: [rubitime_form]
+ * Version: 2.0
  */
 
-define('RUBITIME_API_KEY', 'd2f863bf50341edcdc4e2dd7af14e117535766d85f93e5606b018ab7d2340115');
-define('RUBITIME_API_URL', 'https://rubitime.ru/api2');
-define('TG_WEBHOOK_URL', 'https://ВАШ_СЕРВИС.onrender.com/notify');
+define('RENDER_WEBHOOK_URL', 'https://rubitime-notifier.onrender.com/notify');
 
 function rubitime_get_branches() {
     return [
         'prokhladny' => [
             'name' => 'Прохладный',
-            'branch_id' => 19582,
-            'cooperator_id' => 39681,
-            'service_id' => 71258,
             'teacher' => 'Губжокова Диана Анзоровна',
             'days' => 'Вторник, четверг',
             'groups' => [
@@ -27,9 +22,7 @@ function rubitime_get_branches() {
         ],
         'maisky' => [
             'name' => 'Майский',
-            'branch_id' => 19605,
-            'cooperator_id' => 39682,
-            'service_id' => 71260,
+            'teacher' => '',
             'days' => 'Вторник, четверг',
             'groups' => [
                 'middle_common' => ['name' => 'Средняя (общая)', 'time' => '16:30–17:50'],
@@ -38,9 +31,7 @@ function rubitime_get_branches() {
         ],
         'nalchik' => [
             'name' => 'Нальчик',
-            'branch_id' => 19604,
-            'cooperator_id' => 39683,
-            'service_id' => 71261,
+            'teacher' => '',
             'days' => '',
             'groups' => [],
         ],
@@ -48,11 +39,9 @@ function rubitime_get_branches() {
 }
 
 function rubitime_form_shortcode($atts) {
-    wp_enqueue_script('jquery');
     ob_start(); ?>
 <div class="rt-container" id="rt-app">
 
-  <!-- ===== ЭКРАН 1: Выбор филиала ===== -->
   <div class="rt-screen" id="rt-s1">
     <h1>Выберите филиал</h1>
     <div class="rt-btns">
@@ -62,28 +51,22 @@ function rubitime_form_shortcode($atts) {
     </div>
   </div>
 
-  <!-- ===== ЭКРАН 2: Выбор группы ===== -->
   <div class="rt-screen rt-hide" id="rt-s2">
     <button class="rt-back" data-back="rt-s1">← Назад</button>
     <h1 id="rt-s2-title">Выберите группу</h1>
-
     <div class="rt-branch-info-box" id="rt-branch-info-box">
       <div class="rt-info-row" id="rt-info-days"></div>
       <div class="rt-info-row" id="rt-info-teacher"></div>
     </div>
-
     <div class="rt-btns" id="rt-groups-list"></div>
   </div>
 
-  <!-- ===== ЭКРАН 3: Правила + форма ===== -->
   <div class="rt-screen rt-hide" id="rt-s3">
     <button class="rt-back" data-back="rt-s2">← Назад</button>
     <h1 id="rt-s3-title">Правила группы</h1>
     <p class="rt-label" id="rt-group-info"></p>
-
     <div class="rt-rules-box" id="rt-rules-box"></div>
 
-    <!-- Поля Имя и Телефон -->
     <label class="rt-field">
       <span>Имя ребёнка</span>
       <input type="text" id="rt-name" placeholder="Например: Анна" />
@@ -97,13 +80,10 @@ function rubitime_form_shortcode($atts) {
       <input type="checkbox" id="rt-agree">
       <span>Я прочитал(а) правила</span>
     </label>
-
     <div class="rt-error rt-hide" id="rt-error-msg"></div>
-
     <button type="button" class="rt-submit" id="rt-enroll-btn" disabled>Записаться</button>
   </div>
 
-  <!-- ===== ЭКРАН 4: Успех ===== -->
   <div class="rt-screen rt-hide" id="rt-s4">
     <h1>Заявка отправлена!</h1>
     <p class="rt-label" id="rt-s4-info"></p>
@@ -113,7 +93,6 @@ function rubitime_form_shortcode($atts) {
     <button class="rt-btn" id="rt-restart" style="margin-top:16px;background:transparent;color:#010b12;border:2px solid #010b12;">Записаться ещё</button>
   </div>
 
-  <!-- ===== Загрузка ===== -->
   <div class="rt-load rt-hide" id="rt-load"><div class="rt-spin"></div><p>Отправка...</p></div>
 </div>
 
@@ -138,13 +117,10 @@ function rubitime_form_shortcode($atts) {
 .rt-rules-box li{margin-bottom:6px}
 .rt-check{display:flex;align-items:center;gap:10px;font-size:15px;color:#010b12;cursor:pointer;margin-bottom:16px;user-select:none}
 .rt-check input[type="checkbox"]{width:20px;height:20px;accent-color:#010b12;cursor:pointer;flex-shrink:0}
-
-/* Поля формы */
 .rt-field{display:block;margin-bottom:16px}
 .rt-field span{display:block;font-size:14px;font-weight:600;color:#010b12;margin-bottom:6px}
 .rt-field input{width:100%;padding:12px 14px;font-size:16px;border:2px solid #c0d0b0;border-radius:0;box-sizing:border-box;outline:none;transition:border-color .2s;background:#fff}
 .rt-field input:focus{border-color:#010b12}
-
 .rt-submit:disabled{opacity:.4;cursor:not-allowed}
 .rt-error{background:#fce4e4;border:2px solid #e74c3c;color:#c0392b;padding:12px 16px;margin-bottom:16px;font-size:14px}
 .rt-success-block{background:#fff;border:2px solid #c0d0b0;padding:24px;text-align:center;color:#333;font-size:16px;margin-bottom:16px}
@@ -160,10 +136,8 @@ function rubitime_form_shortcode($atts) {
     var rtBranches = <?php echo json_encode(rubitime_get_branches()); ?>;
     var rtSelectedBranch = null;
     var rtSelectedGroup  = null;
-    var rtAjaxUrl       = '<?php echo admin_url('admin-ajax.php'); ?>';
-    var rtNonce         = '<?php echo wp_create_nonce('rubitime_submit'); ?>';
+    var rtWebhookUrl    = '<?php echo RENDER_WEBHOOK_URL; ?>';
 
-    /* ---------- Утилиты ---------- */
     function showScreen(id) {
         var screens = document.querySelectorAll('#rt-app .rt-screen');
         for (var i = 0; i < screens.length; i++) screens[i].classList.add('rt-hide');
@@ -198,13 +172,11 @@ function rubitime_form_shortcode($atts) {
         document.getElementById('rt-error-msg').classList.add('rt-hide');
     }
 
-    /* ---------- Инициализация ---------- */
     function initForm() {
         var app = document.getElementById('rt-app');
         if (!app) { setTimeout(initForm, 200); return; }
 
         app.addEventListener('click', function(e) {
-            /* --- Экран 1: выбор филиала --- */
             var branchBtn = e.target.closest('[data-branch]');
             if (branchBtn) {
                 hideError();
@@ -250,7 +222,6 @@ function rubitime_form_shortcode($atts) {
                 showScreen('rt-s2');
             }
 
-            /* --- Экран 2: выбор группы --- */
             var groupBtn = e.target.closest('[data-group]');
             if (groupBtn) {
                 hideError();
@@ -268,7 +239,6 @@ function rubitime_form_shortcode($atts) {
                 showScreen('rt-s3');
             }
 
-            /* --- Кнопки «Назад» --- */
             var backBtn = e.target.closest('[data-back]');
             if (backBtn) {
                 hideError();
@@ -276,12 +246,10 @@ function rubitime_form_shortcode($atts) {
             }
         });
 
-        /* --- Чекбокс --- */
         document.getElementById('rt-agree').addEventListener('change', function() {
             document.getElementById('rt-enroll-btn').disabled = !this.checked;
         });
 
-        /* --- Кнопка «Записаться» → AJAX --- */
         document.getElementById('rt-enroll-btn').addEventListener('click', function() {
             hideError();
 
@@ -293,34 +261,38 @@ function rubitime_form_shortcode($atts) {
 
             var b = rtBranches[rtSelectedBranch];
             var g = b.groups[rtSelectedGroup];
+            var comment = 'Группа: ' + g.name + ' (' + g.time + ')';
 
             document.getElementById('rt-load').classList.remove('rt-hide');
 
-            jQuery.post(rtAjaxUrl, {
-                action: 'rubitime_submit',
-                nonce:  rtNonce,
-                branch: rtSelectedBranch,
-                group:  rtSelectedGroup,
-                name:   name,
-                phone:  phone,
+            fetch(rtWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    branch: b.name,
+                    group: g.name,
+                    name: name,
+                    phone: phone,
+                    comment: comment,
+                }),
             })
-            .done(function(resp) {
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
                 document.getElementById('rt-load').classList.add('rt-hide');
-                if (resp.success) {
+                if (data.ok) {
                     document.getElementById('rt-s4-info').textContent =
                         b.name + ' — ' + g.name + ' (' + g.time + ')';
                     showScreen('rt-s4');
                 } else {
-                    showError(resp.data.message || 'Ошибка при отправке');
+                    showError('Ошибка при отправке');
                 }
             })
-            .fail(function() {
+            .catch(function() {
                 document.getElementById('rt-load').classList.add('rt-hide');
                 showError('Ошибка соединения. Попробуйте позже.');
             });
         });
 
-        /* --- Кнопка «Записаться ещё» --- */
         document.getElementById('rt-restart').addEventListener('click', function() {
             rtSelectedBranch = null;
             rtSelectedGroup = null;
@@ -340,70 +312,3 @@ function rubitime_form_shortcode($atts) {
     return ob_get_clean();
 }
 add_shortcode('rubitime_form', 'rubitime_form_shortcode');
-
-/* ====== AJAX-обработчик ====== */
-add_action('wp_ajax_rubitime_submit', 'rubitime_ajax');
-add_action('wp_ajax_nopriv_rubitime_submit', 'rubitime_ajax');
-function rubitime_ajax() {
-    check_ajax_referer('rubitime_submit', 'nonce');
-
-    $branch_key = sanitize_text_field($_POST['branch'] ?? '');
-    $group_key  = sanitize_text_field($_POST['group'] ?? '');
-    $name       = sanitize_text_field($_POST['name'] ?? '');
-    $phone      = sanitize_text_field($_POST['phone'] ?? '');
-
-    $branches = rubitime_get_branches();
-    if (!isset($branches[$branch_key]) || !isset($branches[$branch_key]['groups'][$group_key])) {
-        wp_send_json_error(['message' => 'Неверный филиал или группа']);
-    }
-
-    $b = $branches[$branch_key];
-    $g = $b['groups'][$group_key];
-
-    $comment = 'Группа: ' . $g['name'] . ' (' . $g['time'] . ')';
-    if ($name) $comment .= ', Имя: ' . $name;
-    if ($phone) $comment .= ', Телефон: ' . $phone;
-
-    // 1. Отправляем в Rubitime CRM
-    $resp = wp_remote_post(RUBITIME_API_URL . '/create-record', [
-        'headers' => ['Content-Type' => 'application/json'],
-        'body' => json_encode([
-            'rk'            => RUBITIME_API_KEY,
-            'branch_id'     => $b['branch_id'],
-            'cooperator_id' => $b['cooperator_id'],
-            'service_id'    => $b['service_id'],
-            'status'        => 5,
-            'duration'      => 1,
-            'record'        => current_time('mysql'),
-            'name'          => $name,
-            'phone'         => $phone,
-            'comment'       => $comment,
-        ]),
-        'timeout' => 15,
-    ]);
-
-    if (is_wp_error($resp)) {
-        wp_send_json_error(['message' => 'Ошибка соединения с CRM']);
-    }
-
-    $body = json_decode(wp_remote_retrieve_body($resp), true);
-    if (!($body && ($body['status'] ?? '') === 'ok')) {
-        wp_send_json_error(['message' => $body['message'] ?? 'Ошибка CRM']);
-    }
-
-    // 2. Уведомляем Telegram + сохраняем в БД через Render-сервис
-    wp_remote_post(TG_WEBHOOK_URL, [
-        'headers'  => ['Content-Type' => 'application/json'],
-        'body'     => json_encode([
-            'branch'  => $b['name'],
-            'group'   => $g['name'],
-            'name'    => $name,
-            'phone'   => $phone,
-            'comment' => $comment,
-        ]),
-        'timeout'  => 5,
-        'blocking' => false,
-    ]);
-
-    wp_send_json_success();
-}
