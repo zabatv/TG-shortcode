@@ -133,7 +133,8 @@ function rt_branches_page() {
     } else {
         echo '<table class="rt-table"><thead><tr><th>Название</th><th>Ключ</th><th>Преподаватель</th><th>Дни</th><th></th></tr></thead><tbody>';
         foreach ($branches as $b) {
-            echo '<tr data-branch=\'' . esc_attr(json_encode($b, JSON_HEX_TAG | JSON_HEX_APOS)) . '\'>';
+            $branchData = array('id' => $b['id'], 'name' => $b['name'], 'teacher' => $b['teacher'] ?? '', 'days' => $b['days'] ?? '');
+            echo '<tr data-branch=\'' . esc_attr(json_encode($branchData, JSON_HEX_TAG | JSON_HEX_APOS)) . '\'>';
             echo '<td><strong>' . esc_html($b['name']) . '</strong></td>';
             echo '<td><code>' . esc_html($b['key']) . '</code></td>';
             echo '<td>' . esc_html($b['teacher'] ?: '') . '</td>';
