@@ -483,6 +483,28 @@ const userState = {};
 (async () => {
   await initDB();
   await seedBranches();
+
+  // Временный фикс: исправляем названия групп Нальчик (если они в кривой кодировке)
+  try {
+    const fixNames = [
+      { id: 343, name: 'Старшая группа (12-17 лет)', time: '15:00-16:20' },
+      { id: 344, name: 'Средняя группа (6-11 лет)', time: '16:30-17:50' },
+      { id: 345, name: 'Младшая группа (4-6 лет)', time: '18:00-18:50' },
+    ];
+    const { getGroupById, updateGroup } = require('./db');
+    for (const f of fixNames) {
+      const existing = await getGroupById(f.id);
+      if (existing) {
+        await updateGroup(f.id, {
+          name: f.name,
+          time: f.time,
+          links: existing.links || '',
+        });
+      }
+    }
+    console.log('DB: nalchik group names fixed');
+  } catch (_) {}
+
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
