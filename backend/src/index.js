@@ -41,6 +41,7 @@ app.get('/api/branches', async (_req, res) => {
     for (const b of branches) {
       const groups = await getGroupsForBranch(b.id);
       result.push({
+        id: b.id,
         key: b.key,
         name: b.name,
         teacher: b.teacher,
