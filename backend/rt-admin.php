@@ -47,20 +47,22 @@ function rt_api_get($path) {
 }
 
 function rt_api_post($path, $body) {
-    wp_remote_post(RT_API . $path, array(
+    $resp = wp_remote_post(RT_API . $path, array(
         'headers' => array('Content-Type' => 'application/json'),
         'body' => json_encode($body),
         'timeout' => 10,
     ));
+    return $resp;
 }
 
 function rt_api_put($path, $body) {
-    wp_remote_request(RT_API . $path, array(
+    $resp = wp_remote_request(RT_API . $path, array(
         'method' => 'PUT',
         'headers' => array('Content-Type' => 'application/json'),
         'body' => json_encode($body),
         'timeout' => 10,
     ));
+    return $resp;
 }
 
 function rt_api_delete($path) {

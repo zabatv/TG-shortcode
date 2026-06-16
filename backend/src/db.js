@@ -191,10 +191,10 @@ async function getGroupsByName(branchName) {
   return res.rows;
 }
 
-async function addGroup({ branch_id, key, name, time }) {
+async function addGroup({ branch_id, key, name, time, links }) {
   const res = await pool.query(
-    `INSERT INTO groups (branch_id, key, name, time) VALUES ($1, $2, $3, $4) RETURNING *`,
-    [branch_id, key, name, time || '']
+    `INSERT INTO groups (branch_id, key, name, time, links) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [branch_id, key, name, time || '', links || '']
   );
   return res.rows[0];
 }
