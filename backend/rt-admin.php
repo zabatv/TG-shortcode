@@ -164,6 +164,20 @@ function rt_branches_page() {
     echo '</form>';
     echo '</div>';
 
+    echo '<script>
+    document.addEventListener("click", function(e) {
+        var btn = e.target.closest(".edit-branch-btn");
+        if (btn) {
+            var tr = btn.closest("tr");
+            var d = JSON.parse(tr.getAttribute("data-branch"));
+            document.getElementById("eid").value = d.id;
+            document.getElementById("ename").value = d.name;
+            document.getElementById("eteacher").value = d.teacher || "";
+            document.getElementById("edays").value = d.days || "";
+            document.getElementById("rt-edit").style.display = "block";
+        }
+    });
+    </script>';
     echo '</div>';
 }
 
