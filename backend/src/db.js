@@ -78,34 +78,71 @@ async function initDB() {
 }
 
 async function seedBranches() {
-  // Создаём филиалы если их нет
-  await pool.query(`INSERT INTO branches (key, name, teacher, days, sort_order) VALUES
-    ('prokhladny', 'Прохладный', 'Губжокова Диана Анзоровна', 'Вторник, четверг', 1),
-    ('maisky', 'Майский', '', 'Вторник, четверг', 2)
-  ON CONFLICT (key) DO NOTHING`);
-
-  // Группы для Прохладного
-  const b = await pool.query('SELECT id FROM branches WHERE key = $1', ['prokhladny']);
   const testLinks = '[{"label":"Telegram","url":"https://t.me/test_group"},{"label":"WhatsApp","url":"https://chat.whatsapp.com/test123"}]';
-  await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order, links) VALUES
-    ($1, 'senior_girls', 'Старшая (девочки)', '15:00–16:20', 1, $2),
-    ($1, 'middle_girls', 'Средняя (девочки)', '16:30–17:50', 2, $2),
-    ($1, 'junior_girls', 'Младшая (девочки)', '18:00–18:50', 3, $2),
-    ($1, 'second_shift_girls', 'Вторая смена (девочки)', '19:00–20:20', 4, $2)
-  ON CONFLICT (branch_id, key) DO UPDATE SET
-    links = CASE WHEN groups.links = '' OR groups.links IS NULL THEN EXCLUDED.links ELSE groups.links END`,
-  [b.rows[0].id, testLinks]);
 
-  // Группы для Майского
-  const b2 = await pool.query('SELECT id FROM branches WHERE key = $1', ['maisky']);
-  await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order, links) VALUES
-    ($1, 'middle_common', 'Средняя (общая)', '16:30–17:50', 1, $2),
-    ($1, 'senior_common', 'Старшая (общая)', '18:00–19:20', 2, $2)
-  ON CONFLICT (branch_id, key) DO UPDATE SET
-    links = CASE WHEN groups.links = '' OR groups.links IS NULL THEN EXCLUDED.links ELSE groups.links END`,
-  [b2.rows[0].id, testLinks]);
+  // Создаём/обновляем филиалы
+  await pool.query(`INSERT INTO branches (key, name, teacher, days, sort_order) VALUES
+    ('nalchik', 'Нальчик', 'Биттирова Бэлла Аскербиевна, Тлупова Милана Беслановна, Гоноков Азамат Махмудович', 'Понедельник и Пятница', 1),
+    ('prokhladny_boys', 'Прохладный - мальчики', 'Биттиров Азамат Аскербиевич, Чурилов Руслан Георгиевич', 'Среда и Пятница', 2),
+    ('prokhladny', 'Прохладный - девочки', 'Губжокова Диана Анзоровна', 'Вторник и Четверг', 3),
+    ('maisky', 'Майский', 'Биттирова Бэлла Аскербиевна, Гоноков Азамат Махмудович', 'Вторник и четверг', 4)
+  ON CONFLICT (key) DO UPDATE SET
+    name = EXCLUDED.name,
+    teacher = EXCLUDED.teacher,
+    days = EXCLUDED.days,
+    sort_order = EXCLUDED.sort_order`);
 
-  // Проставляем ссылки для старых групп, у которых их нет
+  // Группы для Нальчика
+  const bNalchik = await pool.query('SELECT id FROM branches WHERE key = $1', ['nalchik']);
+  await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order, links) VALUES
+    ($1, 'senior', 'Старшая группа (12-17 лет)', '15:00-16:20', 1, $2),
+    ($1, 'middle', 'Средняя группа (6-11 лет)', '16:30-17:50', 2, $2),
+    ($1, 'junior', 'Младшая группа (4-6 лет)', '18:00-18:50', 3, $2)
+  ON CONFLICT (branch_id, key) DO UPDATE SET
+    name = EXCLUDED.name,
+    time = EXCLUDED.time,
+    sort_order = EXCLUDED.sort_order,
+    links = CASE WHEN groups.links = '' OR groups.links IS NULL THEN EXCLUDED.links ELSE groups.links END`,
+  [bNalchik.rows[0].id, testLinks]);
+
+  // Группы для Прохладный - мальчики
+  const bProkhladnyBoys = await pool.query('SELECT id FROM branches WHERE key = $1', ['prokhladny_boys']);
+  await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order, links) VALUES
+    ($1, 'senior', 'Старшая группа (10-17 лет)', '18:30-19:50', 1, $2),
+    ($1, 'junior', 'Младшая группа (4-9 лет)', '17:30-18:20', 2, $2)
+  ON CONFLICT (branch_id, key) DO UPDATE SET
+    name = EXCLUDED.name,
+    time = EXCLUDED.time,
+    sort_order = EXCLUDED.sort_order,
+    links = CASE WHEN groups.links = '' OR groups.links IS NULL THEN EXCLUDED.links ELSE groups.links END`,
+  [bProkhladnyBoys.rows[0].id, testLinks]);
+
+  // Группы для Прохладный - девочки (ключи senior_girls, middle_girls, junior_girls для совместимости)
+  const bProkhladny = await pool.query('SELECT id FROM branches WHERE key = $1', ['prokhladny']);
+  await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order, links) VALUES
+    ($1, 'senior_girls', 'Старшая группа (12-17 лет)', '15:00-16:20', 1, $2),
+    ($1, 'middle_girls', 'Средняя группа (6-11 лет)', '16:30-17:50', 2, $2),
+    ($1, 'junior_girls', 'Младшая группа (4-6 лет)', '18:00-18:50', 3, $2)
+  ON CONFLICT (branch_id, key) DO UPDATE SET
+    name = EXCLUDED.name,
+    time = EXCLUDED.time,
+    sort_order = EXCLUDED.sort_order,
+    links = CASE WHEN groups.links = '' OR groups.links IS NULL THEN EXCLUDED.links ELSE groups.links END`,
+  [bProkhladny.rows[0].id, testLinks]);
+
+  // Группы для Майского (ключи senior_common, middle_common для совместимости)
+  const bMaisky = await pool.query('SELECT id FROM branches WHERE key = $1', ['maisky']);
+  await pool.query(`INSERT INTO groups (branch_id, key, name, time, sort_order, links) VALUES
+    ($1, 'senior_common', 'Старшая группа (12-17 лет)', '15:00-16:20', 1, $2),
+    ($1, 'middle_common', 'Средняя группа (4-11 лет)', '16:30-17:50', 2, $2)
+  ON CONFLICT (branch_id, key) DO UPDATE SET
+    name = EXCLUDED.name,
+    time = EXCLUDED.time,
+    sort_order = EXCLUDED.sort_order,
+    links = CASE WHEN groups.links = '' OR groups.links IS NULL THEN EXCLUDED.links ELSE groups.links END`,
+  [bMaisky.rows[0].id, testLinks]);
+
+  // Проставляем ссылки для групп, у которых их нет
   await pool.query(
     "UPDATE groups SET links = $1 WHERE links = '' OR links IS NULL",
     [testLinks]
